@@ -1,0 +1,10 @@
+Addressing some comments that don't fit nicely into the paper:
+
+I chose wavelets mostly because I thought they were neat, and they aren't the most time intesnive part of my program.
+I also had a go with some high pass filters, but scipy's had a tendency to shift the data temporally in a way that 
+I couldn't account for. 
+
+As for the cone of influence, it was most often in an area of the wavelet power plot that had been set to zero by the
+denoising routine, so I just left it off. 
+
+I fixed the issue with the incorrectly labelled plots. 
