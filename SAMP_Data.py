@@ -1,3 +1,4 @@
+
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools as it
@@ -6,10 +7,11 @@ import sys
 import dask.dataframe as dd
 import math as m
 sys.path.append('/home/wyatt/py_Modules')
-import SAMPEXattitude as att
+
 from os import listdir
 from os.path import isfile, join
 import os
+from glob import glob
 
 class SampexDateConverter:
     """
@@ -36,6 +38,11 @@ def datetime_from_filename(filename):
 
     return year + days
 
+def datetime_from_doy(year,doy):
+    year = pd.Timestamp(str(year))
+    days = pd.DateOffset(days = (doy-1))
+    return year+ days
+
 def quick_read(filename,start,end):
     startDate = start.tz_localize(None)
     endDate = end.tz_localize(None)
@@ -43,9 +50,12 @@ def quick_read(filename,start,end):
     time_converter = SampexDateConverter(date)
     totalRows = m.ceil((endDate-startDate).total_seconds() / .1)
     rowsToSkip = m.ceil((startDate-date).total_seconds() / .1)
+    cols = ['Time','Rate1','Rate2','Rate3','Rate4','Rate5','Rate6']
     try:
+
         data = pd.read_csv(filename, sep=' ', header=0,
                            date_parser=time_converter.sec_to_date,
+                           names=cols,
                            parse_dates=['Time'], index_col=['Time'],
                            skiprows=rowsToSkip,
                            nrows=totalRows,
@@ -56,27 +66,158 @@ def quick_read(filename,start,end):
                                   "Rate4": np.uint16,
                                   "Rate5": np.uint16,
                                   "Rate6": np.uint16})
-        data.index = data.index.tz_convert('UTC')
-        #data['Time'] = data.index
+        if not data.empty:
+            #there's a lot of missing data, so trying to acquire data a half
+            #hour at a time doesnt actually work, it grabs 30*60/.1 data points
+            #thus we hit the end of the file too soon, so as a stupid solution
+            #i just return the empty data frame and all function calls
+            #downstream just skip through when they get it
+            data['Time'] = data.index
+            data.index = data.index.tz_convert('UTC')
 
     except FileNotFoundError:
         print(filename + ' not found')
         return None
 
     return data
+class HiltData:
+    _data_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State1'
 
-    data = pd.read_csv(self.filename, sep=' ', header=None,
-                           parse_dates={'Time': self._col_names[0:3]},
-                           date_parser=self.date_converter,
-                           keep_date_col=True,
-                           names=self._col_names,
-                           usecols=col_list,
-                           skiprows=list(range(0, 60+rowsToSkip)),
-                           nrows=totalRows,
-                           error_bad_lines=False,
-                           skipinitialspace=True).set_index('Time')
+    def __init__(self,filename=None,date=None):
+        if filename is None and date is None:
+            raise TypeError("Either a time or a file is needed")
+        elif filename is None:
+            self._init_date(date)
+        elif date is None:
+            self._init_filename(filename)
+        else:
+            self._init_filename(filename)
+            if not self.date_in(date):
+                raise TypeError("Two input arguments provided, "
+                                "but don't agree")
+
+    def _init_filename(self, filename):
+        """
+        Initializes with a given file.
+        :param filename: HILT data file
+        TODO: doesnt work yet
+        """
+
+        self.filename = filename
+        start_year = pd.to_datetime(filename[-19:-15], utc=True)
+        start_days = pd.to_timedelta(int(filename[-15:-12])-1, 'D')
+        self.start = start_year + start_days
+
+        end_year = pd.to_datetime(filename[-11:-7], utc=True)
+        end_days = pd.to_timedelta(int(filename[-7:-4]), 'D')
+        self.end = end_year + end_days
+
+    def _init_date(self, date):
+        """
+        Initializes to use hilt data for a specific time
+        :param date: str, YYYYDDD
+        """
+        year = pd.Timestamp(date[0:4])
+        days_off = int(date[4:])-1
+        days = pd.DateOffset(days = days_off)
+        self.date = year+days
+        files = []
+        # start_dir = os.getcwd()
+        start_dir = '/home/wyatt/Documents/SAMPEX'
+        pattern   = "*.txt"
+
+        for dir,_,_ in os.walk(start_dir):
+            files.extend(glob(os.path.join(dir,pattern)))
+
+        # files = [f for f in listdir(self._data_dir)
+        #          if isfile(join(self._data_dir, f))]
+        found_file = False
+
+        for data_filename in files:
+
+            # Checks each file in in the catlog to see if it's valid.
+            if date in data_filename:
+                self.filename = data_filename
+                found_file = True
+                break
+
+        if not found_file:
+            raise ValueError("File for ", date, " could not be found")
+    def read(self,start,end):
+        """
+        :param start: int, start second of day
+        :param end: int, end second of day
+        or
+        send start and end as None
+        """
+        time_converter = SampexDateConverter(self.date)
+        cols = ['Time','Rate1','Rate2','Rate3','Rate4','Rate5','Rate6']
+        try:
+            data = pd.read_csv(self.filename, sep=' ', header=0,
+                               date_parser=time_converter.sec_to_date,
+                               names=cols,
+                               parse_dates=['Time'], index_col=['Time'],
+                               dtype={"Time": np.float128,
+                                      "Rate1": np.uint16,
+                                      "Rate2": np.uint16,
+                                      "Rate3": np.uint16,
+                                      "Rate4": np.uint16,
+                                      "Rate5": np.uint16,
+                                      "Rate6": np.uint16})
+        except FileNotFoundError:
+            print(filename + ' not found')
+            return None
+
+        if type(start)==int:
+            start_time = self.date + pd.Timedelta(start,unit='seconds')
+            end_time = self.date + pd.Timedelta(end,unit='seconds')
+
+            return data[start_time:end_time]
+        else:
+            return data
+
+    def quick_read(self,start,end):
+        """
+        :param start: int, start second of day
+        :param end: int, end second of day
+        """
+        start_time = self.date + pd.Timedelta(start,unit='seconds')
+        end_time = self.date + pd.Timedelta(end,unit='seconds')
+        time_converter = SampexDateConverter(self.date)
+        totalRows = m.ceil((end_time-start_time).total_seconds() / .1)
+        rowsToSkip = m.ceil((start_time-self.date).total_seconds() / .1)
+        cols = ['Time','Rate1','Rate2','Rate3','Rate4','Rate5','Rate6']
+        try:
+            data = pd.read_csv(self.filename, sep=' ', header=0,
+                               date_parser=time_converter.sec_to_date,
+                               names=cols,
+                               parse_dates=['Time'], index_col=['Time'],
+                               skiprows=rowsToSkip,
+                               nrows=totalRows,
+                               dtype={"Time": np.float128,
+                                      "Rate1": np.uint16,
+                                      "Rate2": np.uint16,
+                                      "Rate3": np.uint16,
+                                      "Rate4": np.uint16,
+                                      "Rate5": np.uint16,
+                                      "Rate6": np.uint16})
+            # if not data.empty:
+            #     #there's a lot of missing data, so trying to acquire data a half
+            #     #hour at a time doesnt actually work, it grabs 30*60/.1 data points
+            #     #thus we hit the end of the file too soon, so as a stupid solution
+            #     #i just return the empty data frame and all function calls
+            #     #downstream just skip through when they get it
+            #     data['Time'] = data.index
+            #     data.index = data.index.tz_convert('UTC')
+
+        except FileNotFoundError:
+            print(filename + ' not found')
+            return None
+
+        return data
 
 class OrbitData:
+    #wrong dir
     _data_dir = '/home/wyatt/Documents/SAMPEX/OrbitData'
     def __init__(self, filename=None, date=None):
         if filename is None and date is None:
@@ -94,7 +235,6 @@ class OrbitData:
     def _init_filename(self, filename):
         """
         Initializes with a given file.
-
         :param filename: The orbit data file
         """
 
@@ -110,12 +250,10 @@ class OrbitData:
     def _init_date(self, date):
         """
         Initializes to use orbit data for a specific time
-
         :param date: Datetime64 object for the time of orbital data to use
         """
         files = [f for f in listdir(self._data_dir)
                  if isfile(join(self._data_dir, f))]
-
         found_file = False
 
         for data_filename in files:
@@ -134,7 +272,6 @@ class OrbitData:
     def date_in(self, date):
         """
         Tests if date is in the range of the object's orbit datafile
-
         :param date: Datetime64 object
         :return: Bool: if date is contained
         """
@@ -143,7 +280,6 @@ class OrbitData:
     def read_data(self, parameters=None):
         """
         Creates a pandas dataframe from the orbit data file
-
         :param parameters:
         :param approx_start [day sec]
         :param approx_end   [day sec]
@@ -268,4 +404,5 @@ if __name__ == '__main__':
                               pd.Timestamp('1993-'+month +'-'+day+ ' ' +hour+ ':59:59' , tz = 'utc')])
     event = eventList[0]
     data = quick_read(filename,event[0],event[1])
-    print(data.columns)
+
+    print(data)

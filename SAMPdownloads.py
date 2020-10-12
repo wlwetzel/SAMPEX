@@ -1,6 +1,6 @@
 import requests,io
-url = 'http://www.srl.caltech.edu/sampex/DataCenter/DATA/HILThires/State1/hhrr1993'
-workDir = '/home/wyatt/Documents/SAMPEX/data/HILThires/State1/'
+url = 'http://www.srl.caltech.edu/sampex/DataCenter/DATA/HILThires/State1/hhrr1992'
+workDir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State1/'
 
 days = ['00' + str(i) for i in range(1,10)] + ['0' + str(i) for i in range(10,100)] + [str(i) for i in range(100,366)]
 for day in days:
