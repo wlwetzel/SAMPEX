@@ -19,14 +19,15 @@ a_500 = 500ms running average
 #let's load the 96 bounce packet
 
 date = '1992278'
-date = '1993079'
+# date = '1993079'
 obj = HiltData(date=date)
-data = obj.read(None,None)
+data = obj.read(14000,14850)
 data = data[['Rate1','Rate2','Rate3','Rate4']]
-x = data['Rate1']
-a_500 = x.rolling(window=5,center=True).mean()
-burst_param = (x-a_500)/np.sqrt(1+a_500)
-bursts = x[burst_param>10]
-fig = px.line(x)
-fig.add_scatter(x=bursts.index,y=bursts.to_numpy(),mode='markers')
+# x = data['Rate1']
+# a_500 = x.rolling(window=5,center=True).mean()
+# burst_param = (x-a_500)/np.sqrt(1+a_500)
+# bursts = x[burst_param>10]
+fig = px.line(data,log_y='True')
+fig.update_layout(yaxis_title_text="Counts",title_text = "SAMPEX Microbursts",showlegend=True)
+# fig.add_scatter(x=bursts.index,y=bursts.to_numpy(),mode='markers')
 fig.show()
