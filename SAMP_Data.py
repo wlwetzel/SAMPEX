@@ -121,6 +121,7 @@ class HiltData:
         days_off = int(date[4:])-1
         days = pd.DateOffset(days = days_off)
         self.date = year+days
+
         files = []
         # start_dir = os.getcwd()
         start_dir = '/home/wyatt/Documents/SAMPEX'
@@ -138,11 +139,13 @@ class HiltData:
             # Checks each file in in the catlog to see if it's valid.
             if date in data_filename:
                 self.filename = data_filename
+                self.state = data_filename[-17] #different states
                 found_file = True
                 break
 
         if not found_file:
             raise ValueError("File for ", date, " could not be found")
+
     def read(self,start,end):
         """
         :param start: int, start second of day
@@ -165,14 +168,28 @@ class HiltData:
                                       "Rate5": np.uint16,
                                       "Rate6": np.uint16})
         except FileNotFoundError:
-            print(filename + ' not found')
             return None
+            print(filename + ' not found')
+        if self.state=='2':
+            """
+            state 2 rate1:time to time +20ms rate2:time+20 to time+40
+                    rate3:time+40 to time+60 rate5:time+80 to time+100
+                    rate6:time+60 to time+80
+            """
+            times = data.index
+            delta = pd.Timedelta(20,unit="milli")
+            rate1 = pd.DataFrame({"Counts":data['Rate1'].to_numpy()},index=times)
+            rate2 = pd.DataFrame({"Counts":data['Rate2'].to_numpy()},index=times+delta)
+            rate3 = pd.DataFrame({"Counts":data['Rate3'].to_numpy()},index=times+2*delta)
+            rate5 = pd.DataFrame({"Counts":data['Rate5'].to_numpy()},index=times+4*delta)
+            rate6 = pd.DataFrame({"Counts":data['Rate6'].to_numpy()},index=times+3*delta)
+            data = pd.concat([rate1,rate2,rate3,rate5,rate6])
+            data = data.sort_index()
 
         if type(start)==int:
             start_time = self.date + pd.Timedelta(start,unit='seconds')
             end_time = self.date + pd.Timedelta(end,unit='seconds')
-
-            return data[start_time:end_time]
+            return data[start_time.tz_localize('UTC'):end_time.tz_localize('UTC')]
         else:
             return data
 

@@ -1,14 +1,32 @@
 import requests,io
-url = 'http://www.srl.caltech.edu/sampex/DataCenter/DATA/HILThires/State1/hhrr1992'
-workDir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State1/'
+year92 = False
+if year92:
+    url = 'http://www.srl.caltech.edu/sampex/DataCenter/DATA/HILThires/State1/hhrr1992'
+    workDir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State1/'
 
-days = ['00' + str(i) for i in range(1,10)] + ['0' + str(i) for i in range(10,100)] + [str(i) for i in range(100,366)]
-for day in days:
-    print(day)
-    down = url+ day+'.txt.zip'
-    r = requests.get(down,allow_redirects=True)
-    with open(workDir + 'hhrr1993'+day+'.txt.zip','wb') as f:
-        f.write(r.content)
+    days = ['00' + str(i) for i in range(1,10)] + ['0' + str(i) for i in range(10,100)] + [str(i) for i in range(100,366)]
+    for day in days:
+        print(day)
+        down = url+ day+'.txt.zip'
+        r = requests.get(down,allow_redirects=True)
+        with open(workDir + 'hhrr1993'+day+'.txt.zip','wb') as f:
+            f.write(r.content)
+"""
+State 2: First 20-msec SSD configuration: 1994-137 thru 1994-237.
+note* missing data from 169-200
+"""
+state2=True
+if state2:
+    workDir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State2/'
+    url = 'http://www.srl.caltech.edu/sampex/DataCenter/DATA/HILThires/State2/hhrr1994'
+    days = [str(i) for i in range(137,238)]
+    for day in days:
+        print(day)
+        down = url+ day+'.txt.zip'
+        r = requests.get(down,allow_redirects=True)
+        with open(workDir + 'hhrr1994'+day+'.txt.zip','wb') as f:
+            f.write(r.content)
+
 
 # for day in days:
 #     zip_url = url + day + '.txt.zip'
