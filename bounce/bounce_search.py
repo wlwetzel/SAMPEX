@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from bounce_algorithms import peak_algo
 from bounce_algorithms import peak_algo_v2
+from bounce_algorithms import peak_algo_v2_high_res
 
 """
 Runs a search over SAMPEX data files for bouncing microbursts, using the peak-
@@ -27,27 +28,55 @@ v2 using burst parameter in bouncing_93_v2.csv
 # x = data['Rate1'].to_numpy()
 # grouped,prominences = peak_algo(x)
 
-write_path = '/home/wyatt/Documents/SAMPEX/generated_Data/bouncing_93_v2.csv'
-days = ['00' + str(i) for i in range(1,10)] + ['0' + str(i) for i in range(10,100)] + [str(i) for i in range(100,366)]
-dates = ['1993'+day for day in days]
-dates.insert(0,'1992278')
-errors = 0
-for date in dates:
-    try:
+"""
+searching through low res data
+"""
+low_res = 0
+if low_res:
+    write_path = '/home/wyatt/Documents/SAMPEX/generated_Data/bouncing_93_v2.csv'
+    days = ['00' + str(i) for i in range(1,10)] + ['0' + str(i) for i in range(10,100)] + [str(i) for i in range(100,366)]
+    dates = ['1993'+day for day in days]
+    dates.insert(0,'1992278')
+    errors = 0
+    for date in dates:
+        try:
+            print(date)
+            obj = HiltData(date=date)
+            data = obj.read(None,None)
+            data = data[['Rate1','Rate2','Rate3','Rate4']]
+            x = data['Rate1'].to_numpy()
+
+            # grouped,prominences = peak_algo(x)
+
+            grouped,prominences = peak_algo_v2(data['Rate1'])
+
+            print("number found: ", len(grouped))
+            write_df = pd.DataFrame({'date':date,'number':len(grouped) , 'groups':[grouped]})
+            write_df.to_csv(write_path,mode='a',header=False)
+        except:
+            errors+=1
+            pass
+    print(errors)
+
+high_res=1
+if high_res:
+    write_path = '/home/wyatt/Documents/SAMPEX/generated_Data/bouncing_94_v2.csv'
+    file_path = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State2'
+    dates = [name[-11:-4] for name in os.listdir(file_path)]
+
+    errors = 0
+    for date in dates:
+        # try:
         print(date)
         obj = HiltData(date=date)
         data = obj.read(None,None)
-        data = data[['Rate1','Rate2','Rate3','Rate4']]
-        x = data['Rate1'].to_numpy()
 
-        # grouped,prominences = peak_algo(x)
-
-        grouped,prominences = peak_algo_v2(data['Rate1'])
+        grouped,prominences = peak_algo_v2_high_res(data['Counts'])
 
         print("number found: ", len(grouped))
         write_df = pd.DataFrame({'date':date,'number':len(grouped) , 'groups':[grouped]})
         write_df.to_csv(write_path,mode='a',header=False)
-    except:
-        errors+=1
-        pass
-print(errors)
+        # except:
+        #     errors+=1
+        #     pass
+    print(errors)

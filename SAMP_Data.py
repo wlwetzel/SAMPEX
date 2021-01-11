@@ -80,6 +80,7 @@ def quick_read(filename,start,end):
         return None
 
     return data
+
 class HiltData:
     _data_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State1'
 

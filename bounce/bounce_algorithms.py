@@ -16,10 +16,19 @@ from scipy.optimize import curve_fit
 # path = '/home/wyatt/Documents/SAMPEX/test_dat.csv'
 # data = pd.read_csv(path)
 # time = data.index
+"""
+high res bouncing microburst example
+date = '1994138'
+obj = HiltData(date=date)
+data = obj.read(75600+3600-120+26,75600+3600-120+32)
+fig = px.line(data)
+fig.show()
+"""
+
 
 def peak_algo(x):
     """
-    
+
     """
     peaks, _ = signal.find_peaks(x,prominence=(500,None))
     peaks = list(peaks)
@@ -98,6 +107,42 @@ def peak_algo_v2(x):
 
     return grouped,prominences
 
+def peak_algo_v2_high_res(x):
+
+    peaks, _ = signal.find_peaks(x,prominence=(100,None))
+    peaks = list(peaks)
+    #groups successive peaks
+    #i have forgotten entirely how this next line works
+    grouped = [list(g) for k, g in groupby(peaks[:-1],lambda x: (peaks[peaks.index(x)+1] -peaks[peaks.index(x)])<35) if k]
+    grouped = [item for item in grouped if len(item)>2]
+    print(grouped)
+    # filtered = [item for item in grouped if np.all(np.diff(x[item]) >=0)]
+
+    #see if a line with negative slope can be reasonably fit
+    # line = lambda x,m,b: m*x+b
+    # line = lambda x,amp,fact: amp*np.exp(-fact * x)
+    line = lambda x,amp,pow: amp*x**(-pow)
+    line_list = []
+    num = 0
+    keep_list = []
+    for group in grouped:
+        #reset each group to start at index=0, to fit to exponential
+        reset_group = [el - group[0]+10 for el in group]
+        popt,pcov = curve_fit(line,reset_group, x[group]  ,p0=[200,2])
+        
+        line_list.append(popt)
+        if popt[1]< 0 and np.sqrt(np.diag(pcov))[1]<150:
+            keep_list.append(num)
+        num+=1
+
+    grouped = [grouped[i] for i in keep_list]
+    line_list = [line_list[i] for i in keep_list]
+
+    filtered = list(itertools.chain.from_iterable(grouped)) #looks like it just flattens
+    prominences = signal.peak_prominences(x,filtered)[0]
+
+    return grouped,prominences
+
 
 def corr_algo(x):
     """
@@ -124,21 +169,33 @@ def butter_highpass_filter(data, cutoff, fs, order=10):
 
 if __name__ == '__main__':
 
-    year = 1992
-    day = 278
-    date = datetime_from_doy(year,day)
-    date = '1992278'
+    """
+    testing for the high res
+    """
+    date = '1994138'
     obj = HiltData(date=date)
-    data = obj.read(14200,14400)
-    data = data[['Rate1','Rate2','Rate3','Rate4']]
-    use_peaks = True
-    # t=np.linspace(0,2,20)
-    # sawtooth = (signal.sawtooth(np.pi *5*t,width=.5) + 1)*np.exp(-t) + 1.5*np.exp(-t)
+    data = obj.read(75600+3600-120+26,75600+3600-120+32)
+    grouped,prominences = peak_algo_v2_high_res(data['Counts'])
+    print(grouped)
+    print(prominences)
+    quit()
+    # year = 1992
+    # day = 278
+    # date = datetime_from_doy(year,day)
+    # date = '1992278'
+    # obj = HiltData(date=date)
+    # data = obj.read(14200,14400)
+    # data = data[['Rate1','Rate2','Rate3','Rate4']]
+    # use_peaks = True
+    # # t=np.linspace(0,2,20)
+    # # sawtooth = (signal.sawtooth(np.pi *5*t,width=.5) + 1)*np.exp(-t) + 1.5*np.exp(-t)
+    #
+    # x = data['Rate1'].to_numpy()
+    # indices = np.array(list(range(len(x))))
+    # line = lambda x,m,b: m*x+b
+    #
 
-    x = data['Rate1'].to_numpy()
-    indices = np.array(list(range(len(x))))
-    line = lambda x,m,b: m*x+b
-
+    use_peaks = False
     if use_peaks:
         grouped,prominences = peak_algo_v2(data['Rate1'])
         peaks = list(itertools.chain.from_iterable(grouped))
