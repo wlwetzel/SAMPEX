@@ -21,7 +21,7 @@ a_500 = 500ms running average
 date = '1992278'
 # date = '1993079'
 obj = HiltData(date=date)
-data = obj.read(14000,14850)1
+data = obj.read(14000,14850)
 data = data[['Rate1','Rate2','Rate3','Rate4']]
 # x = data['Rate1']
 # a_500 = x.rolling(window=5,center=True).mean()

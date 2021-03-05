@@ -10,6 +10,7 @@ from plotly.subplots import make_subplots
 from bounce_algorithms import peak_algo
 from bounce_algorithms import peak_algo_v2
 from bounce_algorithms import peak_algo_v2_high_res
+from bounce_algorithms import candidate_fft
 
 """
 Runs a search over SAMPEX data files for bouncing microbursts, using the peak-
@@ -28,9 +29,28 @@ v2 using burst parameter in bouncing_93_v2.csv
 # x = data['Rate1'].to_numpy()
 # grouped,prominences = peak_algo(x)
 
-"""
-searching through low res data
-"""
+fft_alg = 0
+if fft_alg:
+    date = '1994138'
+    obj = HiltData(date = date)
+    data = obj.read(None,None)
+    #60s chunks, with 20ms bins
+    num = 60*50
+    #i guess just convert to a numpy array
+    data = data.rolling(window=30,min_periods=1).mean()
+
+    data = data.to_numpy().flatten()
+    #number of bins to loop through
+    bins = int(len(data)/num)
+    print("num of bins" , bins)
+    for i in range(bins):
+        print(i / bins*100 ,"%")
+        if candidate_fft(data[i*num:(i+1)*num]):
+            #we've found a bouncing microburst candidate, so for now just plot and save
+            fig = px.line(data[i*num:(i+1)*num])
+            fig.update_layout(title_text = "start index" +str(i*num))
+            fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/fft/bounce_fft_"+str(i)+".html",include_plotlyjs="cdn")
+
 low_res = 0
 if low_res:
     write_path = '/home/wyatt/Documents/SAMPEX/generated_Data/bouncing_93_v2.csv'
@@ -63,20 +83,16 @@ if high_res:
     write_path = '/home/wyatt/Documents/SAMPEX/generated_Data/bouncing_94_v2.csv'
     file_path = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State2'
     dates = [name[-11:-4] for name in os.listdir(file_path)]
-
-    errors = 0
+    num_files = len(dates)
+    curr = 1
     for date in dates:
-        # try:
         print(date)
         obj = HiltData(date=date)
         data = obj.read(None,None)
-
+        data = data.rolling(window=5,min_periods=1).mean()
         grouped,prominences = peak_algo_v2_high_res(data['Counts'])
-
-        print("number found: ", len(grouped))
         write_df = pd.DataFrame({'date':date,'number':len(grouped) , 'groups':[grouped]})
         write_df.to_csv(write_path,mode='a',header=False)
-        # except:
-        #     errors+=1
-        #     pass
-    print(errors)
+        print("number found: ", len(grouped))
+        print(curr/num_files*100,"%")
+        curr+=1
