@@ -83,7 +83,7 @@ def peak_algo_v2(x):
 
     #groups successive peaks
     #i have forgotten entirely how this next line works
-    grouped = [list(g) for k, g in groupby(peaks[:-1],lambda x: (peaks[peaks.index(x)+1] -peaks[peaks.index(x)])<5) if k]
+    grouped = [list(g) for k, g in groupby(peaks[:-1],lambda x: (peaks[peaks.index(x)+1] -peaks[peaks.index(x)])<10) if k]
     grouped = [item for item in grouped if len(item)>2]
 
     # filtered = [item for item in grouped if np.all(np.diff(x[item]) >=0)]
@@ -103,7 +103,7 @@ def peak_algo_v2(x):
     grouped = [grouped[i] for i in keep_list]
     line_list = [line_list[i] for i in keep_list]
 
-    filtered = list(itertools.chain.from_iterable(grouped)) #looks like it just flattens
+    filtered = list(itertools.chain.from_iterable(grouped)) #just flattens
     prominences = signal.peak_prominences(x,filtered)[0]
 
     return grouped,prominences
@@ -117,7 +117,7 @@ def peak_algo_v2_high_res(x):
     small  = []
     start = time.time()
     for i in range(len(peaks)-1):
-        if (peaks[i+1]-peaks[i])<75 and (peaks[i+1]-peaks[i])>20 :
+        if (peaks[i+1]-peaks[i])<100 and (peaks[i+1]-peaks[i])>20 :
             small.append(peaks[i])
         elif len(small) !=0:
             small.append(peaks[i])

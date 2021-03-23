@@ -125,7 +125,7 @@ class HiltData:
 
         files = []
         # start_dir = os.getcwd()
-        start_dir = '/home/wyatt/Documents/SAMPEX'
+        start_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data'
         pattern   = "*.txt"
 
         for dir,_,_ in os.walk(start_dir):
@@ -255,7 +255,6 @@ class OrbitData:
         Initializes with a given file.
         :param filename: The orbit data file
         """
-
         self.filename = filename
         start_year = pd.to_datetime(filename[-19:-15], utc=True)
         start_days = pd.to_timedelta(int(filename[-15:-12])-1, 'D')
@@ -273,7 +272,6 @@ class OrbitData:
         files = [f for f in listdir(self._data_dir)
                  if isfile(join(self._data_dir, f))]
         found_file = False
-
         for data_filename in files:
             # Checks each file in in the catlog to see if it's valid.
             self._init_filename(join(self._data_dir, data_filename))
@@ -293,6 +291,7 @@ class OrbitData:
         :param date: Datetime64 object
         :return: Bool: if date is contained
         """
+
         return (self.start <= date) & (date < self.end)
 
     def read_data(self, parameters=None):

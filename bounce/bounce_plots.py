@@ -34,7 +34,7 @@ if low_res:
 
     # input("Press enter to continue")
 
-high_res=1
+high_res=0
 if high_res:
     bounces = pd.read_csv(file,names=cols,usecols=[1,2,3])
     bounces['groups'] = bounces['groups'].apply(literal_eval)

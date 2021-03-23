@@ -51,7 +51,7 @@ if fft_alg:
             fig.update_layout(title_text = "start index" +str(i*num))
             fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/fft/bounce_fft_"+str(i)+".html",include_plotlyjs="cdn")
 
-low_res = 0
+low_res = 1
 if low_res:
     write_path = '/home/wyatt/Documents/SAMPEX/generated_Data/bouncing_93_v2.csv'
     days = ['00' + str(i) for i in range(1,10)] + ['0' + str(i) for i in range(10,100)] + [str(i) for i in range(100,366)]
@@ -78,7 +78,7 @@ if low_res:
             pass
     print(errors)
 
-high_res=1
+high_res=0
 if high_res:
     write_path = '/home/wyatt/Documents/SAMPEX/generated_Data/bouncing_94_v2.csv'
     file_path = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State2'
