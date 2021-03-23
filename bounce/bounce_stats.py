@@ -78,10 +78,14 @@ def bounce_period(times,energy = 1):
     position  = np.array([X,Y,Z])
     ticks = Ticktock(times[0])
     coords = spc.Coords(position,'GEI','car')
+    print(ticks)
+    print(coords)
+
     #something bad is happening with IRBEM, the L values are crazy for a lot of
     #these places, so for now I'll use sampex's provided L vals
-    # Lstar = irb.get_Lstar(ticks,coords,extMag='T89')
-    # Lstar = Lstar['Lm']
+    Lstar = irb.get_Lstar(ticks,coords,extMag='T89')
+    Lstar = Lstar['Lm']
+    print(Lstar)
     Lstar = orbitInfo['L_Shell'].to_numpy()[0]
     loss_cone = find_loss_cone(coords,ticks) #in degrees
     period = 5.62*10**(-2) * Lstar / np.sqrt(energy) * (1-.43 * np.sin(np.deg2rad(loss_cone)))
@@ -161,7 +165,7 @@ if generate_stats:
     df.to_csv(path)
 
 stats_path = "/home/wyatt/Documents/SAMPEX/generated_Data/bounce_stats.csv"
-generate_low_res_stats = 0
+generate_low_res_stats = 1
 if generate_low_res_stats:
     times_list    = []
     percents_list = []
