@@ -291,7 +291,6 @@ class OrbitData:
         :param date: Datetime64 object
         :return: Bool: if date is contained
         """
-
         return (self.start <= date) & (date < self.end)
 
     def read_data(self, parameters=None):
