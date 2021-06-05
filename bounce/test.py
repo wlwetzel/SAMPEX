@@ -35,6 +35,17 @@
 # print(df)
 # print(df.loc[1])
 """
+"""
+import pandas as pd
+
+ind = [1,2,3,4,5]
+dat = [x**2 for x in ind]
+df = pd.DataFrame({"ind":ind,"dat":dat})
+df["Burst"]=1
+print(df)
+
+quit()
+"""
 Make plots of flagged stuff
 3 4 7 16 162 176 319
 """

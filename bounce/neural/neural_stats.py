@@ -73,7 +73,7 @@ def compute_bounce_stats(data,peaks,times):
 
     return time_diff,percent_diff,time_in_period
 
-generate_stats=0
+generate_stats=1
 make_plots=1
 if generate_stats:
 

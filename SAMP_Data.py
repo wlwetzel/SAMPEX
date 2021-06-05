@@ -187,6 +187,24 @@ class HiltData:
             data = pd.concat([rate1,rate2,rate3,rate5,rate6])
             data = data.sort_index()
 
+        if self.state=='4':
+            """
+            state 4 rate1:time to time +20ms rate2:time+20 to time+40
+                    rate3:time+40 to time+60 rate4:time+60 to time+80
+                    rate6:time+80 to time+100
+            """
+            times = data.index
+            delta = pd.Timedelta(20,unit="milli")
+            rate1 = pd.DataFrame({"Counts":data['Rate1'].to_numpy()},index=times)
+            rate2 = pd.DataFrame({"Counts":data['Rate2'].to_numpy()},index=times+delta)
+            rate3 = pd.DataFrame({"Counts":data['Rate3'].to_numpy()},index=times+2*delta)
+            rate4 = pd.DataFrame({"Counts":data['Rate4'].to_numpy()},index=times+3*delta)
+            rate6 = pd.DataFrame({"Counts":data['Rate6'].to_numpy()},index=times+4*delta)
+            data = pd.concat([rate1,rate2,rate3,rate4,rate6])
+            data = data.sort_index()
+
+
+
         if type(start)==int:
             start_time = self.date + pd.Timedelta(start,unit='seconds')
             end_time = self.date + pd.Timedelta(end,unit='seconds')

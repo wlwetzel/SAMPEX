@@ -24,15 +24,23 @@ from tkinter import *
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
 NavigationToolbar2Tk)
+import os
 
-class Window(Tk):
+
+class verifyGui(Tk):
     """docstring for Window."""
 
-    def __init__(self,  parent):
+    def __init__(self,  parent, year):
         Tk.__init__(self,parent)
         self.parent = parent
-        self.path =  "/home/wyatt/Documents/SAMPEX/generated_Data/trimmed_predictions_94.csv"
-        self.accepted_path = "/home/wyatt/Documents/SAMPEX/generated_Data/accepted_predictions_94.csv"
+        self.path =  "/home/wyatt/Documents/SAMPEX/generated_Data/predictions_"+str(year)+".csv"
+        self.accepted_path = "/home/wyatt/Documents/SAMPEX/generated_Data/accepted_predictions_"+str(year)+".csv"
+        self.num_accepted=0
+        self.num_rejected=0
+        # try:
+        #     os.remove(self.accepted_path)
+        # except:
+        #     pass
         self.initialize()
 
     def initialize(self):
@@ -40,6 +48,7 @@ class Window(Tk):
         predictions = pd.read_csv(self.path,header=None,
                                   names=["Time","Counts","bounce"],usecols=[0,1,2])
         self.predictions = predictions.set_index('bounce',append=False)
+        self.total_bounces = len(self.predictions.index.drop_duplicates())
         self.bounce_num = 0 #for keeping track of which bounce we're looking at
 
         #make figure and place button
@@ -74,7 +83,11 @@ class Window(Tk):
 
     def refreshFigure(self):
         self.bounce_num+=1
-        print(self.bounce_num)
+        os.system('clear')
+        print(f"{self.bounce_num} / {self.total_bounces}")
+        false_pos = float(self.num_rejected) / (self.num_accepted + self.num_rejected)
+        print(f"False Positive Rate: {false_pos * 100.0}")
+
         y = self.predictions.loc[self.bounce_num]['Counts'].to_numpy()
         x = np.arange(len(y))
         self.line1.set_data(x,y)
@@ -86,6 +99,7 @@ class Window(Tk):
     def acceptBounce(self):
         self.predictions.loc[self.bounce_num].to_csv(self.accepted_path,
                                                      mode='a',header=False)
+        self.num_accepted+=1
         self.refreshFigure()
 
     def flagBounce(self):
@@ -95,42 +109,13 @@ class Window(Tk):
 
     def rejectBounce(self):
         #pass on anything here for now
+        self.num_rejected+=1
         self.refreshFigure()
 
-#
-# window = Window(None)
-# window.mainloop()
 
-predictions = pd.read_csv("/home/wyatt/Documents/SAMPEX/generated_Data/accepted_predictions_94.csv",
-                          header=None,names=["Bounce","Time","Counts"],usecols=[0,1,2])
-print(len(predictions["Bounce"].drop_duplicates()))
-quit()
-#trim down the predictions
-path = "/home/wyatt/Documents/SAMPEX/generated_Data/predictions_94.csv"
-trimmed_path = "/home/wyatt/Documents/SAMPEX/generated_Data/trimmed_predictions_94.csv"
-predictions = pd.read_csv(path,header=None,names=["date","predictions"],usecols=[1,2])
-predictions["predictions"] = predictions["predictions"].apply(literal_eval)
-train_size = 151
-bounce_num = 0
-for date in predictions["date"]:
-    print(date)
-    try:
-        obj  = HiltData(date=str(date))
-        data = obj.read(None,None)
-    except:
-        print("No data available for this day")
-        continue
-    #loop over train_size length sections
-    data_length = len(data.index)
-    num_chunks = data_length/train_size
-    df_dict = {n: data.iloc[n:n+train_size,:] for n in range(0,len(data.index),train_size)}
-    row = predictions.loc[predictions['date'] == date]['predictions'].to_numpy()[0]
-    counter=0
-    for key,chunk in df_dict.items():
-        if row[counter] !=0:
-            print(row[counter])
-            write = copy.deepcopy(chunk)
-            write['bounce'] = bounce_num
-            bounce_num +=1
-            write.to_csv(trimmed_path,mode='a',header=False)
-        counter+=1
+window = verifyGui(None,96)
+window.mainloop()
+#
+# predictions = pd.read_csv("/home/wyatt/Documents/SAMPEX/generated_Data/accepted_predictions_9.csv",
+#                           header=None,names=["Bounce","Time","Counts"],usecols=[0,1,2])
+# print(len(predictions["Bounce"].drop_duplicates()))
