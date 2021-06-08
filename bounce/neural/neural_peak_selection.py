@@ -22,6 +22,7 @@ def on_pick(event):
     ind = event.ind
     peak_times.append(x[ind[0]])
     print(x[ind[0]])
+
 peak_times_master = []
 for index in indices:
     peak_times = []

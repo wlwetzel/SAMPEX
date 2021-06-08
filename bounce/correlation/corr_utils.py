@@ -1,4 +1,3 @@
-from sklearn.neural_network import MLPClassifier
 import numpy as np
 import plotly.express as px
 import pandas as pd
@@ -27,6 +26,8 @@ NavigationToolbar2Tk)
 import os
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
+
 
 class corrSearch:
     """docstring for corrSearch."""
@@ -142,7 +143,7 @@ class corrSearch:
             #     )
             # fig.show()
             # quit()
-            cutoff = .001 #determined via trial and error
+            cutoff = .0012 #determined via trial and error
             bounce_candidates = corr_df[corr_df["Corr"] > cutoff]
             if len(bounce_candidates.index)>0:
                 grouped_times = self._group_candidates(bounce_candidates)
@@ -158,7 +159,6 @@ class corrSearch:
                         bounce_num+=1
                 print(f"{bounce_num} Bounces found so far")
 
-            print(f"{bounce_num} Bounces found so far")
 
 class verifyGui(Tk):
     """docstring for Window."""
@@ -170,10 +170,10 @@ class verifyGui(Tk):
         self.accepted_path = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
         self.num_accepted=0
         self.num_rejected=0
-        # try:
-        #     os.remove(self.accepted_path)
-        # except:
-        #     pass
+        try:
+            os.remove(self.accepted_path)
+        except:
+            pass
         self.initialize()
 
     def initialize(self):
@@ -248,13 +248,178 @@ class verifyGui(Tk):
         self.num_rejected+=1
         self.refreshFigure()
 
-if __name__ == '__main__':
-    year = 1996
-    blah = corrSearch(year)
-    blah.search()
-    gu = verifyGui(None,year)
-    gu.mainloop()
-    #1998 08 16 164238
+class peak_select:
+    def __init__(self,year):
+        self.year=year
+        self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
+        self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"+str(year)+".csv"
+        try:
+            os.remove(self.peaks_file)
+        except:
+            pass
+
+    def _on_pick(self,event):
+        artist = event.artist
+        xmouse, ymouse = event.mouseevent.xdata, event.mouseevent.ydata
+        x, y = artist.get_xdata(), artist.get_ydata()
+        ind = event.ind
+        self.peak_times.append(x[ind[0]])
+        print(x[ind[0]])
+
+    def select(self):
+        bounces = pd.read_csv(self.counts_file,header=None,
+                              names=["Burst","Time","Counts"],usecols=[0,1,2])
+        indices = bounces['Burst'].drop_duplicates().to_numpy()
+        bounces = bounces.set_index(['Burst','Time'])
+
+        peak_times_master = []
+        for index in indices:
+            self.peak_times = []
+            curr_data = bounces.loc[index]
+            fig, ax = plt.subplots()
+
+            ax.plot(curr_data.index,curr_data['Counts'],'-b',picker=10)
+            fig.canvas.callbacks.connect('pick_event', self._on_pick)
+            plt.show()
+
+            peak_times_master.append(self.peak_times)
+
+        print(peak_times_master)
+        df = pd.DataFrame(data = {"Peaks":peak_times_master,"Burst":indices})
+        df.to_csv(self.peaks_file)
+
+
+class stats:
+    def __init__(self):
+        self.stats_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/stats.csv"
+        self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"
+        self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"
+        try:
+            os.remove(self.stats_file)
+        except:
+            pass
+
+    def _to_equatorial(self,position,time,pitch):
+        """
+        take in spacepy coord class and ticktock class
+        """
+
+        blocal = irb.get_Bfield(time,position,extMag='T89')['Blocal']
+        beq = irb.find_magequator(time,position,extMag='T89')['Bmin']
+        eq_pitch = np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * beq / blocal))
+        return np.rad2deg(eq_pitch)
+
+    def _find_loss_cone(self,position,time):
+        foot = irb.find_footpoint(time,position,extMag='T89')['Bfoot']
+        eq = irb.find_magequator(time,position,extMag='T89')['Bmin']
+
+        pitch=90 #for particles mirroring at 100km
+        return np.rad2deg(np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * eq / foot)))
+
+    def _bounce_period(self,times,energy = 1):
+        """
+        calculates electron bounce period at edge of loss cone
+        energy in MeV
+        """
+        start = times[0]
+        end = times[-1]
+
+        dataObj = OrbitData(date=start)
+        orbitInfo = dataObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
+
+        X = (orbitInfo['GEI_X'].to_numpy() / Re)[0]
+        Y = (orbitInfo['GEI_Y'].to_numpy() / Re)[0]
+        Z = (orbitInfo['GEI_Z'].to_numpy() / Re)[0]
+        position  = np.array([X,Y,Z])
+        ticks = Ticktock(times[0])
+        coords = spc.Coords(position,'GEI','car')
+
+        #something bad is happening with IRBEM, the L values are crazy for a lot of
+        #these places, so for now I'll use sampex's provided L vals
+        # Lstar = irb.get_Lstar(ticks,coords,extMag='T89')
+        # Lstar = Lstar['Lm']
+        # print(Lstar)
+        Lstar = orbitInfo['L_Shell'].to_numpy()[0]
+        loss_cone = find_loss_cone(coords,ticks) #in degrees
+        period = 5.62*10**(-2) * Lstar / np.sqrt(energy) * (1-.43 * np.sin(np.deg2rad(loss_cone)))
+        return period[0]
+
+    def _compute_bounce_stats(self,data,peaks,times):
+        """
+        peaks are times of where bursts are
+        """
+        time_diff = pd.Series(np.diff(peaks)).mean(numeric_only=False).total_seconds()
+        #how much burst has decreased
+        first_peak = float(data.loc[peaks[0]])
+        last_peak = float(data.loc[peaks[1]])
+        percent_diff = (first_peak - last_peak) / first_peak * 100
+
+        #need to find bounce period of spacecraft
+        period = bounce_period(times)
+
+        time_in_period = time_diff/period
+
+        return time_diff,percent_diff,time_in_period
+
+    def generate_stats(self,use_years="All"):
+        if use_years=="All":
+            years = [1994,1996,1997,1998,1999,2000,2001,2002,2003,2004]
+        else:
+            years=use_years
+
+        for year in years:
+            counts_file = self.counts_file+str(year)+".csv"
+            counts = pd.read_csv(counts_file,header=None,names=["Burst","Time","Counts"],usecols=[0,1,2])
+            counts['Time'] = pd.to_datetime(counts['Time'])
+            counts = counts.set_index(['Burst','Time'])
+
+            peaks_file = self.peaks_file+str(year)+".csv"
+            peaks = pd.read_csv(peaks_file,usecols=[1,2])
+            peaks['Peaks'] = peaks['Peaks'].apply(literal_eval)
+            peaks = peaks.set_index('Burst')
+            indices = peaks.index
+            times_list    = []
+            percents_list = []
+            periods_list  = []
+            for index in indices:
+                data = counts.loc[index]
+                curr_peak_times = [pd.Timestamp(peak) for peak in peaks.loc[index][0]]
+                if not curr_peak_times:
+                    continue
+                    print("founf rejected bounce")
+
+                start = curr_peak_times[0]
+                end   = curr_peak_times[-1]
+
+                time_diff,percent_diff,time_in_period = compute_bounce_stats(data,curr_peak_times,(start,end))
+                print('\n')
+                print(time_diff)
+                print(time_in_period)
+                print(percent_diff)
+                print('\n')
+
+                if percent_diff!=None:
+                    times_list.append(time_diff)
+                    percents_list.append(percent_diff)
+                    periods_list.append(time_in_period)
+                #uncomment to plot all
+                # fig = px.line(data)
+                # trace = go.Scatter(x= peaks[counter],y = data[peaks[counter]],mode = 'markers')
+                # fig.add_trace(trace)
+                # fig.show()
+            df = pd.DataFrame(data = {'time_diff':times_list,'percent_diff':percents_list,'period_comp':periods_list})
+            df.to_csv(self.stats_file,mode="a")
+
+
+
+#
+# if __name__ == '__main__':
+#     year = 1998
+#     blah = corrSearch(year)
+#     blah.search()
+#     gu = verifyGui(None,year)
+#     gu.mainloop()
+#     #1998 08 16 164238
 
 
 
