@@ -35,7 +35,7 @@ def bounce_period(times,energy = 1):
     """
     start = times[0]
     end = times[-1]
-
+    print(start)
     dataObj = OrbitData(date=start)
     orbitInfo = dataObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
 
