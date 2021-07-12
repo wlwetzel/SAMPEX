@@ -13,8 +13,6 @@ from more_itertools import chunked
 import tkinter
 import spacepy.coordinates as spc
 import spacepy.irbempy as irb
-
-
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
 # Implement the default Matplotlib key bindings.
@@ -318,6 +316,11 @@ class stats:
         self.stats_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/stats.csv"
         self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"
         self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"
+
+        self.stats_file = "/media/wyatt/64A5-F009/corr_dat/stats.csv"
+        self.peaks_file = "/media/wyatt/64A5-F009/corr_dat/peaks_"
+        self.counts_file = "/media/wyatt/64A5-F009/corr_dat/accepted_"
+
         self.Re = 6371
 
     def _to_equatorial(self,position,time,pitch):
@@ -346,6 +349,10 @@ class stats:
         end = times[-1]
         dataObj = sp.OrbitData(date=start)
         orbitInfo = dataObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
+        if  (orbitInfo['GEO_Lat'].to_numpy() / self.Re)[0]>0:
+            self.hemisphere = "N"
+        else:
+            self.hemisphere = "S"
 
         X = (orbitInfo['GEI_X'].to_numpy() / self.Re)[0]
         Y = (orbitInfo['GEI_Y'].to_numpy() / self.Re)[0]
@@ -410,6 +417,7 @@ class stats:
             times_list    = []
             percents_list = []
             periods_list  = []
+            hemisphere_list = []
             for index in indices:
                 data = counts.loc[index]
                 curr_peak_times = [pd.Timestamp(peak) for peak in peaks.loc[index][0]]
@@ -422,47 +430,39 @@ class stats:
 
                 time_diff,percent_diff,time_in_period = self._compute_bounce_stats(data,curr_peak_times,(start,end))
 
-                if self.Lstar < 7.0:
+                if self.Lstar < 5.0:
                     print(self.Lstar)
                     if percent_diff!=None:
                         times_list.append(time_diff)
                         percents_list.append(percent_diff)
                         periods_list.append(time_in_period)
+                        hemisphere_list.append(self.hemisphere)
                 else:
                     continue
 
-                # if 3.45 < time_in_period < 3.55:
-                #     fig = px.line(data)
-                #     fig.update_layout(title_text= f"Example, peak dist = {time_in_period:.2f} bounces, L={self.Lstar:.1f}")
-                #     fig.show()
-                #
-                # if .6 < time_in_period < .65:
-                #     fig = px.line(data)
-                #     fig.update_layout(title_text= f"Example, peak dist = {time_in_period:.2f} bounces, L={self.Lstar:.1f}")
-                #     fig.show()
-
-
-            df = pd.DataFrame(data = {'time_diff':times_list,'percent_diff':percents_list,'period_comp':periods_list})
+            df = pd.DataFrame(data = {'time_diff':times_list,
+                'percent_diff':percents_list,'period_comp':periods_list,'hemisphere':hemisphere_list})
             df.to_csv(self.stats_file,mode="a",header=None)
 
     def plot(self):
-        df = pd.read_csv(self.stats_file,names = ["time_diff","percent_diff","period_comp"],usecols=[1,2,3])
-
+        df = pd.read_csv(self.stats_file,names = ["time_diff","percent_diff",
+                        "period_comp","hemisphere"],usecols=[1,2,3,4])
+        df[["percent_diff","time_diff","period_comp"]] = np.abs(df[["percent_diff","time_diff","period_comp"]])
         num_bounces = len(df.index)
-        fig = px.histogram(np.abs(df['percent_diff'][np.abs(df['percent_diff'])<100]),nbins=50)
+        fig = px.histogram(df[['percent_diff','hemisphere']][np.abs(df['percent_diff'])<100],nbins=25,color="hemisphere")
 
         fig.update_layout(title_text = "Percent Difference Between 1st Two Peaks",
                     xaxis_title_text = "Percent")
         fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/PercentDiff.html",include_plotlyjs="cdn")
         fig.show()
 
-        fig = px.histogram(np.abs(df['time_diff']),nbins=40)
+        fig = px.histogram(df[['time_diff',"hemisphere"]],nbins=40,color="hemisphere")
         fig.update_layout(title_text = f"Average Time Diff Between Peaks, Total Number of Bouncing Microbursts: {num_bounces}",
                             xaxis_title_text = "Time Diff (s)")
         fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/TimeDiff.html",include_plotlyjs="cdn")
         fig.show()
 
-        fig = px.histogram(np.abs(df['period_comp']),nbins=100)
+        fig = px.histogram(df[['period_comp',"hemisphere"]],nbins=100,color="hemisphere")
         fig.update_layout(title_text = "Time Between Peaks Divided By Bounce Period",
                             xaxis_title_text = "(Arb Units)")
         fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/Periods.html",include_plotlyjs="cdn")

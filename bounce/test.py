@@ -1,3 +1,33 @@
+import numpy as np
+import plotly.express as px
+import pandas as pd
+import sys
+sys.path.append("/home/wyatt/Documents/SAMPEX")
+import SAMP_Data as sp
+import plotly.graph_objects as go
+from scipy import signal
+from spacepy.time import Ticktock
+from ast import literal_eval
+from joblib import dump, load
+from more_itertools import chunked
+import tkinter
+import spacepy.coordinates as spc
+import spacepy.irbempy as irb
+from matplotlib.backends.backend_tkagg import (
+    FigureCanvasTkAgg, NavigationToolbar2Tk)
+# Implement the default Matplotlib key bindings.
+from matplotlib.backend_bases import key_press_handler
+from matplotlib.figure import Figure
+import copy
+import numpy as np
+from tkinter import *
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
+NavigationToolbar2Tk)
+import os
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
 # import matplotlib.pyplot as plt
 # test = []
 #
@@ -36,28 +66,61 @@
 # print(df.loc[1])
 """
 """
-import pandas as pd
+# import pandas as pd
+#
+# ind = [1,2,3,4,5]
+# dat = [x**2 for x in ind]
+# df = pd.DataFrame({"ind":ind,"dat":dat})
+# df["Burst"]=1
+# print(df)
+#
+# quit()
+# """
+# Make plots of flagged stuff
+# 3 4 7 16 162 176 319
+# """
+# import pandas as pd
+# import plotly.express as px
+# path = "/home/wyatt/Documents/SAMPEX/generated_Data/flagged_Data.csv"
+# df = pd.read_csv(path,names=['Burst','Time','Counts'])
+# df['Time'] = pd.to_datetime(df['Time'])
+#
+# df = df.set_index(['Burst','Time'])
+#
+# plotdf = df.loc[4]
+# fig = px.line(plotdf)
+# fig.update_layout(title_text = "Flagged Data")
+# fig.show()
+Re = 6371
+L_list = []
+def pp(start, end, n):
+    start_u = start.value//10**9
+    end_u = end.value//10**9
 
-ind = [1,2,3,4,5]
-dat = [x**2 for x in ind]
-df = pd.DataFrame({"ind":ind,"dat":dat})
-df["Burst"]=1
+    return pd.DatetimeIndex((10**9*np.random.randint(start_u, end_u, n, dtype=np.int64)).view('M8[ns]'),tz='UTC')
+s = pd.to_datetime('1996-11-20')
+e = pd.to_datetime('2002-01-01')
+starts = pp(s,e,200)
+counter = 1
+# for start in starts:
+#     print(counter)
+#     counter+=1
+#     end = start+pd.Timedelta("5s")
+#     dataObj = sp.OrbitData(date=start)
+#     orbitInfo = dataObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
+#
+#     X = (orbitInfo['GEI_X'].to_numpy() / Re)[0]
+#     Y = (orbitInfo['GEI_Y'].to_numpy() / Re)[0]
+#     Z = (orbitInfo['GElpI_Z'].to_numpy() / Re)[0]
+#     position  = np.array([X,Y,Z])
+#     ticks = Ticktock(start)
+#     coords = spc.Coords(position,'GEI','car')
+#     Lstar = irb.get_Lstar(ticks,coords,extMag='0')
+#     Lstar = abs(Lstar['Lm'][0])
+#     L_list.append(Lstar[0])
+# df = pd.DataFrame(data={"L":L_list})
+# df.to_csv("/home/wyatt/Documents/SAMPEX/bounce/correlation/ls.csv")
+df = pd.read_csv("/home/wyatt/Documents/SAMPEX/bounce/correlation/ls.csv")
 print(df)
-
-quit()
-"""
-Make plots of flagged stuff
-3 4 7 16 162 176 319
-"""
-import pandas as pd
-import plotly.express as px
-path = "/home/wyatt/Documents/SAMPEX/generated_Data/flagged_Data.csv"
-df = pd.read_csv(path,names=['Burst','Time','Counts'])
-df['Time'] = pd.to_datetime(df['Time'])
-
-df = df.set_index(['Burst','Time'])
-
-plotdf = df.loc[4]
-fig = px.line(plotdf)
-fig.update_layout(title_text = "Flagged Data")
+fig = px.histogram(df["L"][df["L"]<10],nbins=20)
 fig.show()
