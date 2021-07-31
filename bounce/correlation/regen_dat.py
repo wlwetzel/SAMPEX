@@ -24,7 +24,7 @@ peaks_96 = pd.read_csv("/home/wyatt/Documents/SAMPEX/bounce/correlation/data/pea
 peaks_96['Peaks'] = peaks_96['Peaks'].apply(literal_eval)
 peaks_96 = peaks_96.set_index('Burst')
 indices_96 = peaks_96.index
-
+time = 0
 for ind in indices_94:
     peaks = peaks_94["Peaks"].loc[ind]
     if not peaks:

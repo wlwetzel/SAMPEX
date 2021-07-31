@@ -82,8 +82,8 @@ def quick_read(filename,start,end):
     return data
 
 class HiltData:
-    # _data_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State1'
-    _data_dir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State1"
+    _data_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State1'
+    # _data_dir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State1"
 
     def __init__(self,filename=None,date=None):
         if filename is None and date is None:
@@ -126,8 +126,8 @@ class HiltData:
 
         files = []
         # start_dir = os.getcwd()
-        # start_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data'
-        start_dir = "/media/wyatt/64A5-F009/SAMPEX_Data"
+        start_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data'
+        # start_dir = "/media/wyatt/64A5-F009/SAMPEX_Data"
         pattern   = "*.txt"
 
         for dir,_,_ in os.walk(start_dir):
@@ -257,7 +257,7 @@ class HiltData:
 class OrbitData:
     #wrong dir
     _data_dir = '/home/wyatt/Documents/SAMPEX/OrbitData'
-    _data_dir = "/media/wyatt/64A5-F009/OrbitData"
+    # _data_dir = "/media/wyatt/64A5-F009/OrbitData"
     def __init__(self, filename=None, date=None):
         if filename is None and date is None:
             raise TypeError("Either a time or a file is needed")

@@ -49,8 +49,13 @@ class corrSearch:
         """
         data: pandas dataframe, 20ms SAMPEX count data
         return: data with rolling 10th percentile subtracted
+        TESTING: *Subtracting min value off data chunks to try to get more
+                 similar vals for correlation
+                 *also trying some small boxcar smoothing
         """
+        rolled = data.rolling(5,min_periods=1).mean()
         subtracted = data - data.rolling(10,min_periods=1).quantile(.1)
+
         return subtracted
 
     def _correlate(self,data,kernel):
@@ -77,6 +82,20 @@ class corrSearch:
         kernel = kernel.set_index(['bounce','Time'])
         return kernel.loc[which_kernel]
 
+    def _load_artifical_kernel(self,distance):
+        #distnace should be provided in seconds
+        burst = lambda t,amp,dist: amp * np.exp(-.5*(t-dist)**2 / (.05**2) )
+        total_time = 5 #s
+        samples = int(5/(20*10**-3))
+        times = np.linspace(0,total_time,samples)
+        bounce = None
+        for n in range(1,5):
+            if bounce is None:
+                bounce = burst(times,1/n,n*distance)
+            else:
+                bounce += burst(times,1/n,n*distance)
+        return pd.DataFrame(bounce)
+
     def _group_candidates(self,candidates):
         """
         for organizing the candidates into groupes of times close to one another
@@ -99,50 +118,107 @@ class corrSearch:
 
     def _obrien(self,dat):
         dat = pd.DataFrame(data={"Counts":dat})
-        a_500 = dat.rolling(window=25,center=True).mean()
-        n_100 = dat.rolling(window=5,center=True).mean()
+        #transform to 100ms looking data
+        n_100 = dat.rolling(window=5,center=True).sum()
+        a_500 = n_100.rolling(window=25,center=True).mean()
         burst_param = (n_100-a_500)/np.sqrt(1+a_500)
-        return (burst_param>6).any()["Counts"]
+        return (burst_param>5).any()["Counts"]
 
     def search(self):
-        chunk_size = 5000 #100s / 20ms * 1000ms/s
-        kernels = [self._load_kernel(i) for i in range(5)]
+        chunk_size = 250 #5s / 20ms * 1000ms/s
+        # kernels = [self._load_kernel(i) for i in range(5)]
+        distances = [.05,.75,.1,.15,.2,.3,.5,.75,.8,1.0]
+        kernels = [self._load_artifical_kernel(dist) for dist in distances]
         days = ['00' + str(i) for i in range(1,10)] + ['0' + str(i) for i in range(10,100)] + [str(i) for i in range(100,366)]
         #loop through one day at a time
         bounce_num = 0
-        for day in days[255:]:
+        for day in days:
             try:
                 obj  = sp.HiltData(date=str(self.year)+day)
                 data = obj.read(None,None)
+                print(day)
             except:
                 print("No data for this day.")
                 continue
 
-            #stick together kernels
-            kern = pd.concat(kernels)
-            # corr_df = pd.DataFrame(data = {"Corr":self._correlate(data,kern)},
-            #                        index=data.index)
-
-            df_dict = {n: data.iloc[n:n+chunk_size,:] for n in range(0,len(data.index),chunk_size)}
-            for key,chunk in df_dict.items():
-                current_time_series = copy.deepcopy(chunk) #chunk is immutable
-                #reunite the correlation with timestamps
-                corr_df = pd.DataFrame(data = {"Corr":self._correlate(current_time_series,kern)},
-                                       index=current_time_series.index)
-                bounce_candidates = corr_df[corr_df["Corr"] > .05]
-                if len(bounce_candidates.index)>0:
-                    grouped_times = self._group_candidates(bounce_candidates)
-                    #we want the counts, times and a unique number assigned to each
-                    #loop through each pair in grouped_times, and write each time
-                    for time in grouped_times:
-                        write_df = data.loc[time-pd.Timedelta('2s'):time+pd.Timedelta('2s'),:]
-                        #use obrien parameter to filter things that arent bursts
-                        #should improve false positive rate
+            corr_master_dict = {i:pd.DataFrame(data = {"Corr":self._correlate(data,kernels[i])},
+                                       index=data.index) for i in range(len(kernels))}
+            data_dict = {n: data.iloc[n:n+chunk_size,:] for n in range(0,len(data.index),chunk_size)}
+            keys = [key for key in data_dict]
+            for master_key in corr_master_dict:
+                corr_df = corr_master_dict[master_key]
+                # corr_df = corr_df/corr_df.max()
+                bounce_candidates = corr_df[corr_df>.0006]
+                # corr_df["count"] = data
+                # fig = make_subplots(specs=[[{"secondary_y": True}]])
+                # fig.add_trace(
+                #     go.Scatter(x=corr_df.index, y=corr_df["count"].to_numpy(), name="count"),
+                #     secondary_y=False,
+                #     )
+                #
+                # fig.add_trace(
+                #     go.Scatter(x=corr_df.index - pd.Timedelta('2s'), y=corr_df["Corr"].to_numpy(), name="corr"),
+                #     secondary_y=True,
+                #     )
+                # fig.show()
+                # quit()
+                corr_dict = {n: bounce_candidates.iloc[n:n+chunk_size,:] for n in range(0,len(bounce_candidates.index),chunk_size)}
+                keys_to_remove = []
+                for key in keys:
+                    if corr_dict[key]["Corr"].any():
+                        write_df = copy.deepcopy(data_dict[key])
                         if self._obrien(write_df["Counts"].to_numpy().flatten()):
-
                             write_df.loc[:,'Bounce']= bounce_num
                             write_df.to_csv(self.candidate_path,mode='a',header=None)
                             bounce_num+=1
+                            print(f"{bounce_num} bounces found so far")
+                        keys_to_remove.append(key)
+                for rem in keys_to_remove:
+                    keys.remove(rem)
+            ######## roughly 60%
+            # corr_df = None
+            # for kern in kernels:
+            #     if corr_df is None:
+            #         corr_df = pd.DataFrame(data = {"Corr":self._correlate(data,kern)},
+            #                            index=data.index)
+            #     else:
+            #         corr_df += pd.DataFrame(data = {"Corr":self._correlate(data,kern)},
+            #                            index=data.index)
+            #
+            # print(corr_df.max())
+            # corr_df = corr_df/corr_df.max()
+            # bounce_candidates = corr_df[corr_df>.8]
+
+            #
+            # data_dict = {n: data.iloc[n:n+chunk_size,:] for n in range(0,len(data.index),chunk_size)}
+            # corr_dict = {n: bounce_candidates.iloc[n:n+chunk_size,:] for n in range(0,len(bounce_candidates.index),chunk_size)}
+            #
+            # for key in data_dict:
+            #     if corr_dict[key]["Corr"].any():
+            #         write_df = copy.deepcopy(data_dict[key])
+            #         if self._obrien(write_df["Counts"].to_numpy().flatten()):
+            #             write_df.loc[:,'Bounce']= bounce_num
+            #             write_df.to_csv(self.candidate_path,mode='a',header=None)
+            #             bounce_num+=1
+            #             print(f"{bounce_num} bounces found so far")
+            #######
+
+            # old thing better for long time chunks
+            # if len(bounce_candidates.index)>0:
+            #
+            #     grouped_times = self._group_candidates(bounce_candidates)
+            #     #we want the counts, times and a unique number assigned to each
+            #     #loop through each pair in grouped_times, and write each time
+            #     test_count =0
+            #     for time in grouped_times:
+            #         write_df = data.loc[time-pd.Timedelta('2s'):time+pd.Timedelta('2s'),:]
+            #         #use obrien parameter to filter things that arent bursts
+            #         #should improve false positive rate
+            #         if self._obrien(write_df["Counts"].to_numpy().flatten()):
+            #             write_df.loc[:,'Bounce']= bounce_num
+            #             write_df.to_csv(self.candidate_path,mode='a',header=None)
+            #             bounce_num+=1
+
 
             #try multiple kernels, sum results and check
             # corr_df = pd.DataFrame({"Corr":[]})
@@ -310,16 +386,15 @@ class peak_select:
         df = pd.DataFrame(data = {"Peaks":peak_times_master,"Burst":indices})
         df.to_csv(self.peaks_file)
 
-
 class stats:
     def __init__(self):
         self.stats_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/stats.csv"
         self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"
         self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"
-
-        self.stats_file = "/media/wyatt/64A5-F009/corr_dat/stats.csv"
-        self.peaks_file = "/media/wyatt/64A5-F009/corr_dat/peaks_"
-        self.counts_file = "/media/wyatt/64A5-F009/corr_dat/accepted_"
+        #
+        # self.stats_file = "/media/wyatt/64A5-F009/corr_dat/stats.csv"
+        # self.peaks_file = "/media/wyatt/64A5-F009/corr_dat/peaks_"
+        # self.counts_file = "/media/wyatt/64A5-F009/corr_dat/accepted_"
 
         self.Re = 6371
 
@@ -467,32 +542,14 @@ class stats:
                             xaxis_title_text = "(Arb Units)")
         fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/Periods.html",include_plotlyjs="cdn")
         fig.show()
+    # blah.search()
 
 
 
 if __name__ == '__main__':
-    year = 1996
+    year = 1994
     blah = corrSearch(year)
     blah.search()
     gu = verifyGui(None,year)
     gu.mainloop()
     #1998 08 16 164238
-
-
-
-    # df_dict = {n: data.iloc[n:n+chunk_size,:] for n in range(0,len(data.index),chunk_size)}
-    # for key,chunk in df_dict.items():
-    #     current_time_series = copy.deepcopy(chunk) #chunk is immutable
-    #     #reunite the correlation with timestamps
-    #     corr_df = pd.DataFrame(data = {"Corr":self._correlate(current_time_series,kernel)},
-    #                            index=current_time_series.index)
-    #     bounce_candidates = corr_df[corr_df["Corr"] > 130]
-    #     if len(bounce_candidates.index)>0:
-    #         grouped_times = self._group_candidates(bounce_candidates)
-    #         #we want the counts, times and a unique number assigned to each
-    #         #loop through each pair in grouped_times, and write each time
-    #         for time in grouped_times:
-    #             write_df = data.loc[time-pd.Timedelta('2s'):time+pd.Timedelta('2s'),:]
-    #             write_df.loc[:,'Bounce']= bounce_num
-    #             write_df.to_csv(self.candidate_path,mode='a',header=None)
-    #             bounce_num+=1
