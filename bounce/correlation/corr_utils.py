@@ -415,7 +415,7 @@ class stats:
         pitch=90 #for particles mirroring at 100km
         return np.rad2deg(np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * eq / foot)))
 
-    def _bounce_period(self,times,energy = 1):
+    def _bounce_period(self,times,energy = .8):
         """
         calculates electron bounce period at edge of loss cone
         energy in MeV
@@ -436,8 +436,6 @@ class stats:
         ticks = Ticktock(times[0])
         coords = spc.Coords(position,'GEI','car')
 
-        #something bad is happening with IRBEM, the L values are crazy for a lot of
-        #these places, so for now I'll use sampex's provided L vals
         Lstar = irb.get_Lstar(ticks,coords,extMag='0')
         Lstar = abs(Lstar['Lm'][0])
 
@@ -458,6 +456,12 @@ class stats:
 
         first_peak = float(subtracted.loc[peaks[0]])
         last_peak = float(subtracted.loc[peaks[1]])
+        if first_peak == float(0):
+            #what the fuck
+            print("peak was zero for some reason")
+            first_peak = float(subtracted.loc[peaks[1]])
+            last_peak = float(subtracted.loc[peaks[2]])
+
         percent_diff = (first_peak - last_peak) / first_peak * 100
 
         #need to find bounce period of spacecraft
@@ -506,7 +510,6 @@ class stats:
                 time_diff,percent_diff,time_in_period = self._compute_bounce_stats(data,curr_peak_times,(start,end))
 
                 if self.Lstar < 5.0:
-                    print(self.Lstar)
                     if percent_diff!=None:
                         times_list.append(time_diff)
                         percents_list.append(percent_diff)
@@ -516,7 +519,8 @@ class stats:
                     continue
 
             df = pd.DataFrame(data = {'time_diff':times_list,
-                'percent_diff':percents_list,'period_comp':periods_list,'hemisphere':hemisphere_list})
+                'percent_diff':percents_list,'period_comp':periods_list,
+                'hemisphere':hemisphere_list})
             df.to_csv(self.stats_file,mode="a",header=None)
 
     def plot(self):
@@ -537,19 +541,150 @@ class stats:
         fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/TimeDiff.html",include_plotlyjs="cdn")
         fig.show()
 
-        fig = px.histogram(df[['period_comp',"hemisphere"]],nbins=100,color="hemisphere")
+        fig = px.histogram(df[['period_comp',"hemisphere"]],nbins=80,color="hemisphere")
         fig.update_layout(title_text = "Time Between Peaks Divided By Bounce Period",
-                            xaxis_title_text = "(Arb Units)")
+                            xaxis_title_text = "(Arb Units)",xaxis_range=[0,5])
         fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/Periods.html",include_plotlyjs="cdn")
         fig.show()
-    # blah.search()
 
+class plots:
+    def __init__(self,year):
+        self.year = year
+        self.Re = 6371
+        self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
+        self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"+str(year)+".csv"
 
+        #not sure how to do this i hate myself fuck i suck at everything
+
+    def _to_equatorial(self,position,time,pitch):
+        """
+        take in spacepy coord class and ticktock class
+        """
+
+        blocal = irb.get_Bfield(time,position,extMag='T89')['Blocal']
+        beq = irb.find_magequator(time,position,extMag='T89')['Bmin']
+        eq_pitch = np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * beq / blocal))
+        return np.rad2deg(eq_pitch)
+
+    def _find_loss_cone(self,position,time):
+        foot = irb.find_footpoint(time,position,extMag='T89')['Bfoot']
+        eq = irb.find_magequator(time,position,extMag='T89')['Bmin']
+
+        pitch=90 #for particles mirroring at 100km
+        return np.rad2deg(np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * eq / foot)))
+
+    def _bounce_period(self,times,energy = 1):
+        """
+        calculates electron bounce period at edge of loss cone
+        energy in MeV
+        """
+        start = times[0]
+        end = times[-1]
+        dataObj = sp.OrbitData(date=start)
+        orbitInfo = dataObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
+        if  (orbitInfo['GEO_Lat'].to_numpy() / self.Re)[0]>0:
+            self.hemisphere = "N"
+        else:
+            self.hemisphere = "S"
+
+        X = (orbitInfo['GEI_X'].to_numpy() / self.Re)[0]
+        Y = (orbitInfo['GEI_Y'].to_numpy() / self.Re)[0]
+        Z = (orbitInfo['GEI_Z'].to_numpy() / self.Re)[0]
+        position  = np.array([X,Y,Z])
+        ticks = Ticktock(times[0])
+        coords = spc.Coords(position,'GEI','car')
+
+        Lstar = irb.get_Lstar(ticks,coords,extMag='T05')
+        Lstar = abs(Lstar['Lm'][0])
+
+        # Lstar = orbitInfo['L_Shell'].to_numpy()[0]
+        self.Lstar = Lstar
+        loss_cone = self._find_loss_cone(coords,ticks) #in degrees
+        period = 5.62*10**(-2) * Lstar / np.sqrt(energy) * (1-.43 * np.sin(np.deg2rad(loss_cone)))
+        return period[0]
+
+    def _compute_bounce_stats(self,data,peaks,times):
+        """
+        peaks are times of where bursts are
+        """
+        time_diff = pd.Series(np.diff(peaks)).mean(numeric_only=False).total_seconds()
+
+        #how much burst has decreased
+        subtracted = data - data.rolling(10,min_periods=1).quantile(.1)
+
+        first_peak = float(subtracted.loc[peaks[0]])
+        last_peak = float(subtracted.loc[peaks[1]])
+        if first_peak == float(0):
+            #what the fuck
+            print("peak was zero for some reason")
+            first_peak = float(subtracted.loc[peaks[1]])
+            last_peak = float(subtracted.loc[peaks[2]])
+
+        percent_diff = (first_peak - last_peak) / first_peak * 100
+
+        #need to find bounce period of spacecraft
+        period = self._bounce_period(times)
+
+        time_in_period = time_diff/period
+
+        return time_diff,percent_diff,time_in_period
+
+    def _search(self,bounce_period,num):
+
+        counts = pd.read_csv(self.counts_file,header=None,names=["Burst","Time","Counts"],usecols=[0,1,2])
+        counts['Time'] = pd.to_datetime(counts['Time'])
+        counts = counts.set_index(['Burst','Time'])
+
+        peaks = pd.read_csv(self.peaks_file,usecols=[1,2])
+        peaks['Peaks'] = peaks['Peaks'].apply(literal_eval)
+        peaks = peaks.set_index('Burst')
+        indices = peaks.index
+
+        times_list    = []
+        percents_list = []
+        periods_list  = []
+        hemisphere_list = []
+        counts_master_list = []
+        lstar_list = []
+        count = 0
+        for index in indices:
+            data = counts.loc[index]
+            curr_peak_times = [pd.Timestamp(peak) for peak in peaks.loc[index][0]]
+            if not curr_peak_times:
+                continue
+                print("found rejected bounce")
+
+            start = curr_peak_times[0]
+            end   = curr_peak_times[-1]
+
+            time_diff,percent_diff,time_in_period = self._compute_bounce_stats(data,curr_peak_times,(start,end))
+
+            if .85*bounce_period < time_in_period < 1.15*bounce_period and self.Lstar<7:
+                counts_master_list.append(data)
+                hemisphere_list.append(self.hemisphere)
+                lstar_list.append(self.Lstar)
+                periods_list.append(time_in_period)
+                count+=1
+            else:
+                continue
+            if num==count:
+                break
+        return counts_master_list,hemisphere_list,lstar_list,periods_list
+    def plot(self,bounce_period=1,num=2):
+        counts,hemispheres,lstars,periods = self._search(bounce_period,num)
+        for i in range(num):
+            fig = px.line(counts[i])
+
+            fig.update_layout(title_text=f"L val: {lstars[i][0]:.1f}, Hemisphere: {hemispheres[i]}, Periods:{periods[i]:.1f}",
+                              xaxis_title_text="UTC",yaxis_title_text="Counts")
+            fig.show()
 
 if __name__ == '__main__':
-    year = 1994
-    blah = corrSearch(year)
-    blah.search()
-    gu = verifyGui(None,year)
-    gu.mainloop()
+    plot_obj = plots(2002)
+    plot_obj.plot(bounce_period=3.3,num=8)
+    # year = 1994
+    # blah = corrSearch(year)
+    # blah.search()
+    # gu = verifyGui(None,year)
+    # gu.mainloop()
     #1998 08 16 164238

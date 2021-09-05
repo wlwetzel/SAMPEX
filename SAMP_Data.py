@@ -1,4 +1,6 @@
-
+from spacepy.time import Ticktock
+import spacepy.coordinates as spc
+import spacepy.irbempy as irb
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools as it
@@ -7,7 +9,6 @@ import sys
 import dask.dataframe as dd
 import math as m
 sys.path.append('/home/wyatt/py_Modules')
-
 from os import listdir
 from os.path import isfile, join
 import os
@@ -427,6 +428,56 @@ class OrbitData:
                pd.to_timedelta(
                    int(time[9:]),
                     unit='s')
+
+class sampexStats:
+    def __init__(self,time):
+        orbitObj = OrbitData(date=time)
+        start = time-pd.Timedelta("10s")
+        end = time+pd.Timedelta("10s")
+        self.orbitInfo = orbitObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
+        self.orbitInfo = self.orbitInfo[start:end]
+        self.Re = 6371
+
+
+    def _find_loss_cone(self,position,time):
+        foot = irb.find_footpoint(time,position,extMag='T89')['Bfoot']
+        eq = irb.find_magequator(time,position,extMag='T89')['Bmin']
+
+        pitch=90 #for particles mirroring at 100km
+        return np.rad2deg(np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * eq / foot)))
+
+    def get_Lstar(self):
+        return self.orbitInfo["L_Shell"]
+
+
+    def get_bounce_period(self,energy = 1):
+        """
+        calculates electron bounce period at edge of loss cone
+        energy in MeV
+        """
+
+        if  (self.orbitInfo['GEO_Lat'].to_numpy() / self.Re)[0]>0:
+            self.hemisphere = "N"
+        else:
+            self.hemisphere = "S"
+
+        X = (self.orbitInfo['GEI_X'].to_numpy() / self.Re)[0]
+        Y = (self.orbitInfo['GEI_Y'].to_numpy() / self.Re)[0]
+        Z = (self.orbitInfo['GEI_Z'].to_numpy() / self.Re)[0]
+        position  = np.array([X,Y,Z])
+        ticks = Ticktock(self.orbitInfo.index[0])
+        coords = spc.Coords(position,'GEI','car')
+
+        Lstar = irb.get_Lstar(ticks,coords,extMag='0')
+        Lstar = abs(Lstar['Lm'][0])
+
+        # Lstar = self.orbitInfo['L_Shell'].to_numpy()[0]
+        self.Lstar = Lstar
+        loss_cone = self._find_loss_cone(coords,ticks) #in degrees
+        period = 5.62*10**(-2) * Lstar * (1-.43 * np.sin(np.deg2rad(loss_cone)))/ np.sqrt(energy)
+        return period[0]
+
+
 if __name__ == '__main__':
     filename = '/home/wyatt/Documents/SAMPEX/data/HILThires/State1/hhrr1993001.txt'
     month = '01'
