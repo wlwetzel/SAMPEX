@@ -391,10 +391,10 @@ class stats:
         self.stats_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/stats.csv"
         self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"
         self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"
-        #
-        # self.stats_file = "/media/wyatt/64A5-F009/corr_dat/stats.csv"
-        # self.peaks_file = "/media/wyatt/64A5-F009/corr_dat/peaks_"
-        # self.counts_file = "/media/wyatt/64A5-F009/corr_dat/accepted_"
+
+        self.stats_file = "/media/wyatt/64A5-F009/corr_dat/stats.csv"
+        self.peaks_file = "/media/wyatt/64A5-F009/corr_dat/peaks_"
+        self.counts_file = "/media/wyatt/64A5-F009/corr_dat/accepted_"
 
         self.Re = 6371
 
@@ -415,7 +415,7 @@ class stats:
         pitch=90 #for particles mirroring at 100km
         return np.rad2deg(np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * eq / foot)))
 
-    def _bounce_period(self,times,energy = .8):
+    def _bounce_period(self,times,energy = 1):
         """
         calculates electron bounce period at edge of loss cone
         energy in MeV
@@ -442,7 +442,10 @@ class stats:
         # Lstar = orbitInfo['L_Shell'].to_numpy()[0]
         self.Lstar = Lstar
         loss_cone = self._find_loss_cone(coords,ticks) #in degrees
-        period = 5.62*10**(-2) * Lstar / np.sqrt(energy) * (1-.43 * np.sin(np.deg2rad(loss_cone)))
+        mc2 = .511 #elec rest mass
+        beta = np.sqrt(energy/mc2)*np.sqrt(2 + energy/mc2) / (1 + energy/mc2)
+
+        period = .117 * Lstar * (1 - .4635 * np.sin(np.deg2rad(loss_cone))**.75) / beta
         return period[0]
 
     def _compute_bounce_stats(self,data,peaks,times):
@@ -453,7 +456,7 @@ class stats:
 
         #how much burst has decreased
         subtracted = data - data.rolling(10,min_periods=1).quantile(.1)
-
+        print(subtracted)
         first_peak = float(subtracted.loc[peaks[0]])
         last_peak = float(subtracted.loc[peaks[1]])
         if first_peak == float(0):
@@ -567,7 +570,9 @@ class plots:
         return np.rad2deg(eq_pitch)
 
     def _find_loss_cone(self,position,time):
-        foot = irb.find_footpoint(time,position,extMag='T89')['Bfoot']
+        foot = irb.find_footpoint(time,position,extMag='T89')
+        print(foot)
+        foor = foor['Bfoot']
         eq = irb.find_magequator(time,position,extMag='T89')['Bmin']
 
         pitch=90 #for particles mirroring at 100km

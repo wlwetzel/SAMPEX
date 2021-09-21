@@ -84,7 +84,7 @@ def quick_read(filename,start,end):
 
 class HiltData:
     _data_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State1'
-    # _data_dir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State1"
+    _data_dir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State1"
 
     def __init__(self,filename=None,date=None):
         if filename is None and date is None:
@@ -128,7 +128,7 @@ class HiltData:
         files = []
         # start_dir = os.getcwd()
         start_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data'
-        # start_dir = "/media/wyatt/64A5-F009/SAMPEX_Data"
+        start_dir = "/media/wyatt/64A5-F009/SAMPEX_Data"
         pattern   = "*.txt"
 
         for dir,_,_ in os.walk(start_dir):
@@ -258,7 +258,7 @@ class HiltData:
 class OrbitData:
     #wrong dir
     _data_dir = '/home/wyatt/Documents/SAMPEX/OrbitData'
-    # _data_dir = "/media/wyatt/64A5-F009/OrbitData"
+    _data_dir = "/media/wyatt/64A5-F009/OrbitData"
     def __init__(self, filename=None, date=None):
         if filename is None and date is None:
             raise TypeError("Either a time or a file is needed")
@@ -435,12 +435,16 @@ class sampexStats:
         start = time-pd.Timedelta("10s")
         end = time+pd.Timedelta("10s")
         self.orbitInfo = orbitObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
+        print(self.orbitInfo["GEO_Lat"])
         self.orbitInfo = self.orbitInfo[start:end]
         self.Re = 6371
 
 
     def _find_loss_cone(self,position,time):
-        foot = irb.find_footpoint(time,position,extMag='T89')['Bfoot']
+        foot = irb.find_footpoint(time,position,extMag='T89')
+        locus = foot['loci']
+        locus.ticks=time
+        foot = foot['Bfoot']
         eq = irb.find_magequator(time,position,extMag='T89')['Bmin']
 
         pitch=90 #for particles mirroring at 100km

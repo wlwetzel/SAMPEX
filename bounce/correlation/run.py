@@ -31,5 +31,5 @@ import plotly.express as px
 #     peak_obj.select()
 #make statistics
 stat_obj = corr.stats()
-stat_obj.generate_stats(use_years=[1994,1996,1997,1999,2001,2002,2003,2004])
+stat_obj.generate_stats()
 stat_obj.plot()
