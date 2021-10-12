@@ -84,7 +84,7 @@ def quick_read(filename,start,end):
 
 class HiltData:
     _data_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State1'
-    _data_dir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State1"
+    # _data_dir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State1"
 
     def __init__(self,filename=None,date=None):
         if filename is None and date is None:
@@ -128,7 +128,7 @@ class HiltData:
         files = []
         # start_dir = os.getcwd()
         start_dir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data'
-        start_dir = "/media/wyatt/64A5-F009/SAMPEX_Data"
+        # start_dir = "/media/wyatt/64A5-F009/SAMPEX_Data"
         pattern   = "*.txt"
 
         for dir,_,_ in os.walk(start_dir):
@@ -258,7 +258,7 @@ class HiltData:
 class OrbitData:
     #wrong dir
     _data_dir = '/home/wyatt/Documents/SAMPEX/OrbitData'
-    _data_dir = "/media/wyatt/64A5-F009/OrbitData"
+    # _data_dir = "/media/wyatt/64A5-F009/OrbitData"
     def __init__(self, filename=None, date=None):
         if filename is None and date is None:
             raise TypeError("Either a time or a file is needed")
@@ -478,7 +478,10 @@ class sampexStats:
         # Lstar = self.orbitInfo['L_Shell'].to_numpy()[0]
         self.Lstar = Lstar
         loss_cone = self._find_loss_cone(coords,ticks) #in degrees
-        period = 5.62*10**(-2) * Lstar * (1-.43 * np.sin(np.deg2rad(loss_cone)))/ np.sqrt(energy)
+        mc2 = .511 #elec rest mass
+        beta = np.sqrt(energy/mc2)*np.sqrt(2 + energy/mc2) / (1 + energy/mc2)
+
+        period = .117 * Lstar * (1 - .4635 * np.sin(np.deg2rad(loss_cone))**.75) / beta
         return period[0]
 
 

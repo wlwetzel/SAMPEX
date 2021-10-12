@@ -175,87 +175,6 @@ class corrSearch:
                         keys_to_remove.append(key)
                 for rem in keys_to_remove:
                     keys.remove(rem)
-            ######## roughly 60%
-            # corr_df = None
-            # for kern in kernels:
-            #     if corr_df is None:
-            #         corr_df = pd.DataFrame(data = {"Corr":self._correlate(data,kern)},
-            #                            index=data.index)
-            #     else:
-            #         corr_df += pd.DataFrame(data = {"Corr":self._correlate(data,kern)},
-            #                            index=data.index)
-            #
-            # print(corr_df.max())
-            # corr_df = corr_df/corr_df.max()
-            # bounce_candidates = corr_df[corr_df>.8]
-
-            #
-            # data_dict = {n: data.iloc[n:n+chunk_size,:] for n in range(0,len(data.index),chunk_size)}
-            # corr_dict = {n: bounce_candidates.iloc[n:n+chunk_size,:] for n in range(0,len(bounce_candidates.index),chunk_size)}
-            #
-            # for key in data_dict:
-            #     if corr_dict[key]["Corr"].any():
-            #         write_df = copy.deepcopy(data_dict[key])
-            #         if self._obrien(write_df["Counts"].to_numpy().flatten()):
-            #             write_df.loc[:,'Bounce']= bounce_num
-            #             write_df.to_csv(self.candidate_path,mode='a',header=None)
-            #             bounce_num+=1
-            #             print(f"{bounce_num} bounces found so far")
-            #######
-
-            # old thing better for long time chunks
-            # if len(bounce_candidates.index)>0:
-            #
-            #     grouped_times = self._group_candidates(bounce_candidates)
-            #     #we want the counts, times and a unique number assigned to each
-            #     #loop through each pair in grouped_times, and write each time
-            #     test_count =0
-            #     for time in grouped_times:
-            #         write_df = data.loc[time-pd.Timedelta('2s'):time+pd.Timedelta('2s'),:]
-            #         #use obrien parameter to filter things that arent bursts
-            #         #should improve false positive rate
-            #         if self._obrien(write_df["Counts"].to_numpy().flatten()):
-            #             write_df.loc[:,'Bounce']= bounce_num
-            #             write_df.to_csv(self.candidate_path,mode='a',header=None)
-            #             bounce_num+=1
-
-
-            #try multiple kernels, sum results and check
-            # corr_df = pd.DataFrame({"Corr":[]})
-            # for kern in kernels:
-            #     temp_df = pd.DataFrame(data = {"Corr":self._correlate(data,kern)},
-            #                        index=data.index)
-            #
-            #     corr_df = corr_df.add(temp_df,fill_value=0)
-
-            # corr_df['count'] = data["Counts"]
-            # fig = make_subplots(specs=[[{"secondary_y": True}]])
-            # fig.add_trace(
-            #     go.Scatter(x=corr_df.index, y=self._transform_data(corr_df["count"]).to_numpy(), name="count"),
-            #     secondary_y=False,
-            #     )
-            #
-            # fig.add_trace(
-            #     go.Scatter(x=corr_df.index, y=corr_df["Corr"].to_numpy(), name="corr"),
-            #     secondary_y=True,
-            #     )
-            # fig.show()
-            # quit()
-            # cutoff = .0012 #determined via trial and error
-            # bounce_candidates = corr_df[corr_df["Corr"] > cutoff]
-            # if len(bounce_candidates.index)>0:
-            #     grouped_times = self._group_candidates(bounce_candidates)
-            #     #we want the counts, times and a unique number assigned to each
-            #     #loop through each pair in grouped_times, and write each time
-            #     for time in grouped_times:
-            #         write_df = data.loc[time-pd.Timedelta('3s'):time+pd.Timedelta('3s'),:]
-            #         #use obrien parameter to filter things that arent bursts
-            #         #should improve false positive rate
-            #         if self._obrien(write_df["Counts"].to_numpy().flatten()):
-            #             write_df.loc[:,'Bounce']= bounce_num
-            #             write_df.to_csv(self.candidate_path,mode='a',header=None)
-            #             bounce_num+=1
-            #     print(f"{bounce_num} Bounces found so far")
 
 
 class verifyGui(Tk):
@@ -346,6 +265,147 @@ class verifyGui(Tk):
         self.num_rejected+=1
         self.refreshFigure()
 
+class doubleCheck(Tk):
+    """
+    for going through the bounces fuc k i dont care
+    """
+
+    def __init__(self,  parent, year):
+        Tk.__init__(self,parent)
+        self.parent = parent
+        self.accepted_path = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
+        self.reviewed_path = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/reviewed_"+str(year)+".csv"
+        self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"+str(year)+".csv"
+
+        self.counter = 0
+        try:
+            os.remove(self.reviewed_path)
+        except:
+            pass
+
+        self.initialize()
+
+    def _on_pick(self,event):
+        artist = event.artist
+        xmouse, ymouse = event.mouseevent.xdata, event.mouseevent.ydata
+        x, y = artist.get_xdata(), artist.get_ydata()
+        ind = event.ind
+        self.reselected_peaks.append(x[ind[0]])
+        print(x[ind[0]])
+
+    def initialize(self):
+        self.reselected_peaks = [] #for selecting new peaks, have to put it here cause i suck
+        #load in data
+        predictions = pd.read_csv(self.accepted_path,header=None,
+                                  names=["bounce","Time","Counts"],usecols=[0,1,2],
+                                  parse_dates=[1])
+        peaks = pd.read_csv(self.peaks_file,usecols=[1,2])
+        peaks['Peaks'] = peaks['Peaks'].apply(literal_eval)
+        self.bursts = peaks["Burst"].to_numpy()
+
+        self.predictions = predictions.set_index(['bounce',"Time"],append=False)
+        self.peaks = peaks.set_index('Burst',append=False)
+        self.total_bounces = len(self.predictions.index.drop_duplicates())
+
+        self.bounce_num = 0 #for keeping track of which bounce we're looking at
+
+        ind = self.peaks.loc[self.bursts[self.bounce_num]]['Peaks']
+        curr_peak_times = [pd.Timestamp(peak,tz="UTC") for peak in ind]
+        self.curr_peak_times = curr_peak_times
+
+        #make figure and place button
+        fig = Figure(figsize = (7, 7),
+                     dpi = 100)
+        plot1 = fig.add_subplot(111)
+        self.line1,self.line2, = plot1.plot(self.predictions.loc[self.bursts[self.bounce_num]].index,
+                                 self.predictions.loc[self.bursts[self.bounce_num]]['Counts'],
+                                 "b-",
+                                 curr_peak_times,
+                                 self.predictions.loc[self.bursts[self.bounce_num]]['Counts'][curr_peak_times],
+                                 "rx",
+                                 picker=5
+                                 )
+        # fig.canvas.callbacks.connect('pick_event', self._on_pick)
+
+        self.canvas = FigureCanvasTkAgg(fig,
+                                   master = self)
+        self.canvas.mpl_connect('pick_event', self._on_pick)
+        self.canvas.draw()
+        # placing the canvas on the Tkinter window
+        self.canvas.get_tk_widget().pack()
+        # creating the Matplotlib toolbar
+        toolbar = NavigationToolbar2Tk(self.canvas,
+                                       self)
+        toolbar.update()
+        # placing the toolbar on the Tkinter window
+        self.canvas.get_tk_widget().pack()
+
+        acceptButton = Button(self,text="Accept",command = self.acceptBounce)
+        rejectButton = Button(self,text="Reject",command = self.rejectBounce)
+        redoButton   = Button(self,text="Redo",command = self.redoBounce)
+        acceptButton.pack()
+        rejectButton.pack()
+        redoButton.pack()
+
+        self.update()
+
+    def refreshFigure(self):
+        self.reselected_peaks = [] #for selecting new peaks, have to put it here cause i suck
+        self.bounce_num+=1
+        os.system('clear')
+        ind = self.peaks.loc[self.bursts[self.bounce_num]]['Peaks']
+        curr_peak_times = [pd.Timestamp(peak,tz="UTC") for peak in ind]
+        self.curr_peak_times = curr_peak_times
+        x = self.predictions.loc[self.bursts[self.bounce_num]].index
+        y = self.predictions.loc[self.bursts[self.bounce_num]]['Counts']
+        self.line1.set_data(x,y)
+
+        self.line2.set_data(
+                    curr_peak_times,
+                    self.predictions.loc[self.bursts[self.bounce_num]]['Counts'][curr_peak_times]
+                    )
+        self.line2.set_marker(">")
+        ax = self.canvas.figure.axes[0]
+        ax.set_xlim(x.min(), x.max())
+        ax.set_ylim(y.min(), y.max()+200)
+        self.canvas.draw()
+
+    def redraw_new_peaks(self):
+        os.system('clear')
+        x = self.predictions.loc[self.bursts[self.bounce_num]].index
+        y = self.predictions.loc[self.bursts[self.bounce_num]]['Counts']
+        print(self.curr_peak_times)
+        self.line1.set_data(x,y)
+        self.line2.set_data(
+                    self.curr_peak_times,
+                    self.predictions.loc[self.bursts[self.bounce_num]]['Counts'][self.curr_peak_times]
+                    )
+        self.line2.set_marker(">")
+        ax = self.canvas.figure.axes[0]
+        ax.set_xlim(x.min(), x.max())
+        ax.set_ylim(y.min(), y.max()+200)
+        self.canvas.draw()
+        self.reselected_peaks = [] #for selecting new peaks, have to put it here cause i suck
+
+    def acceptBounce(self):
+        curr_prediction = self.predictions.loc[self.bursts[self.bounce_num]]
+        self.curr_peak_times = list(set(self.curr_peak_times))
+        curr_prediction["Peaks"] = 0
+        curr_prediction["Peaks"][self.curr_peak_times]=1
+        curr_prediction["Burst"] = self.counter
+        curr_prediction.to_csv(self.reviewed_path,mode="a",header=False)
+        self.counter+=1
+        self.refreshFigure()
+
+    def redoBounce(self):
+        self.curr_peak_times = self.reselected_peaks
+        self.redraw_new_peaks()
+
+    def rejectBounce(self):
+        #dont need to do anything on reject, just advance to next bounce
+        self.refreshFigure()
+
+
 class peak_select:
     def __init__(self,year):
         self.year=year
@@ -386,15 +446,328 @@ class peak_select:
         df = pd.DataFrame(data = {"Peaks":peak_times_master,"Burst":indices})
         df.to_csv(self.peaks_file)
 
+class stats_v2:
+    def __init__(self,stats_file = "stats.csv",energy=1,mirr=1):
+        """
+        use the stats_file kw for messing around
+        """
+        self.mirror = mirr # if we want to specify manually a mirror lat
+        self.energy=energy
+        self.stats_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/"+stats_file
+        self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/reviewed_"
+
+        self.Re = 6371
+
+    def _to_equatorial(self,position,time,pitch):
+        """
+        take in spacepy coord class and ticktock class
+        """
+
+        blocal = irb.get_Bfield(time,position,extMag='T89')['Blocal']
+        beq = irb.find_magequator(time,position,extMag='T89')['Bmin']
+        eq_pitch = np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * beq / blocal))
+        return np.rad2deg(eq_pitch)
+
+    def _find_loss_cone(self,position,time):
+        foot = irb.find_footpoint(time,position,extMag='T89')['Bfoot']
+        eq = irb.find_magequator(time,position,extMag='T89')['Bmin']
+
+        pitch=90 #for particles mirroring at 100km
+        return np.rad2deg(np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * eq / foot)))
+
+    def _eq_pitch_lat(self,mirror_lat):
+        """
+        calculates the equatorial pitch angle of a particle mirroring at
+        mirror_lat (deg)
+        """
+        eq = np.arcsin(np.sqrt((((np.cos(np.deg2rad(mirror_lat)))**6) / np.sqrt(1 + 3*np.sin(np.deg2rad(mirror_lat))**2))))
+        return np.rad2deg(eq)
+
+    def _bounce_period(self,times,energy = 1):
+        """
+        calculates electron bounce period at edge of loss cone
+        energy in MeV
+        """
+        start = times[0]
+        end = times[-1]
+        dataObj = sp.OrbitData(date=start)
+        orbitInfo = dataObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
+        if  (orbitInfo['GEO_Lat'].to_numpy() / self.Re)[0]>0:
+            self.hemisphere = "N"
+        else:
+            self.hemisphere = "S"
+
+        X = (orbitInfo['GEI_X'].to_numpy() / self.Re)[0]
+        Y = (orbitInfo['GEI_Y'].to_numpy() / self.Re)[0]
+        Z = (orbitInfo['GEI_Z'].to_numpy() / self.Re)[0]
+        position  = np.array([X,Y,Z])
+        ticks = Ticktock(times[0])
+        coords = spc.Coords(position,'GEI','car')
+
+        Lstar = irb.get_Lstar(ticks,coords,extMag='0')
+        Lstar = abs(Lstar['Lm'][0])
+        self.Lstar = Lstar
+
+        #here we switch if we're finding based on the mirror lat or saying the
+        #particles are lost to the atmosphere
+        if not self.mirror==1:
+            eq_pitch = self._eq_pitch_lat(self.mirror)
+        else:
+            eq_pitch = self._find_loss_cone(coords,ticks) #in degrees
+
+        mc2 = .511 #elec rest mass
+        beta = np.sqrt(energy/mc2)*np.sqrt(2 + energy/mc2) / (1 + energy/mc2)
+
+        period = .117 * Lstar * (1 - .4635 * np.sin(np.deg2rad(eq_pitch))**.75) / beta
+        return period[0]
+
+    def _compute_bounce_stats(self,data,peaks,times,energy=1):
+        """
+        peaks are times of where bursts are
+        """
+        time_diff = pd.Series(np.diff(peaks)).mean(numeric_only=False).total_seconds()
+        # print(pd.Series(np.diff(peaks)))
+        #how much burst has decreased
+        subtracted = data - data.rolling(10,min_periods=1).quantile(.1)
+        first_peak = float(subtracted.loc[peaks[0]])
+        last_peak = float(subtracted.loc[peaks[1]])
+        if first_peak == float(0):
+            #what the fuck
+            print("peak was zero for some reason")
+            first_peak = float(subtracted.loc[peaks[1]])
+            last_peak = float(subtracted.loc[peaks[2]])
+
+        percent_diff = (first_peak - last_peak) / first_peak * 100
+
+        #need to find bounce period of spacecraft
+        period = self._bounce_period(times,energy)
+
+        time_in_period = time_diff/period
+
+        return time_diff,percent_diff,time_in_period
+
+    def generate_stats(self,use_years="All"):
+        try:
+            os.remove(self.stats_file)
+        except:
+            pass
+
+        if use_years=="All":
+            years = [1994,1996,1997,1998,1999,2000,2001,2002,2003,2004]
+        else:
+            years=use_years
+
+        for year in years:
+            counts_file = self.counts_file+str(year)+".csv"
+            counts = pd.read_csv(counts_file,header=None,names=["Time","Counts","Peaks","Burst"],usecols=[0,1,2,3])
+            counts['Time'] = pd.to_datetime(counts['Time'])
+            peaks = counts[counts["Peaks"]==1][["Time","Burst"]]
+            indices = list(set(peaks["Burst"].to_numpy()))
+            peaks = peaks.set_index(["Burst"])
+            counts = counts.set_index(['Burst',"Time"])["Counts"]
+            times_list    = []
+            percents_list = []
+            periods_list  = []
+            hemisphere_list = []
+            lstar_list = []
+            for index in indices:
+                data = counts.loc[index]
+                curr_peak_times = peaks.loc[index]["Time"].to_numpy().tolist()
+
+                if not curr_peak_times:
+                    print("found rejected bounce")
+                    continue
+
+                start = curr_peak_times[0]
+                end   = curr_peak_times[-1]
+
+                time_diff,percent_diff,time_in_period = self._compute_bounce_stats(data,curr_peak_times,(start,end),self.energy)
+
+                if self.Lstar < 7.0:
+                    if percent_diff!=None:
+                        times_list.append(time_diff)
+                        percents_list.append(percent_diff)
+                        periods_list.append(time_in_period)
+                        hemisphere_list.append(self.hemisphere)
+                        lstar_list.append(self.Lstar[0])
+                else:
+                    continue
+
+            df = pd.DataFrame(data = {'time_diff':times_list,
+                'percent_diff':percents_list,'period_comp':periods_list,
+                'hemisphere':hemisphere_list,'lstars':lstar_list})
+            df.to_csv(self.stats_file,mode="a",header=None)
+
+    def plot(self):
+        df = pd.read_csv(self.stats_file,names = ["time_diff","percent_diff",
+                        "period_comp","hemisphere"],usecols=[1,2,3,4])
+        df[["percent_diff","time_diff","period_comp"]] = np.abs(df[["percent_diff","time_diff","period_comp"]])
+        num_bounces = len(df.index)
+        fig = px.histogram(df[['percent_diff','hemisphere']][np.abs(df['percent_diff'])<100],nbins=25,color="hemisphere")
+        mean1 = (df[['percent_diff','hemisphere']][np.abs(df['percent_diff'])<100]).mean()
+        median1 = (df[['percent_diff','hemisphere']][np.abs(df['percent_diff'])<100]).median()
+        fig.update_layout(title_text = f"Percent Difference Between 1st Two Peaks, mean {mean1},median {median1}",
+                    xaxis_title_text = "Percent")
+        fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/PercentDiff.html",include_plotlyjs="cdn")
+        fig.show()
+
+        fig = px.histogram(df[['time_diff',"hemisphere"]],nbins=40,color="hemisphere")
+        fig.update_layout(title_text = f"Average Time Diff Between Peaks, Total Number of Bouncing Microbursts: {num_bounces}",
+                            xaxis_title_text = "Time Diff (s)")
+        fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/TimeDiff.html",include_plotlyjs="cdn")
+        fig.show()
+
+        fig = px.histogram(df[['period_comp',"hemisphere"]],nbins=37,color="hemisphere")
+        fig.update_layout(title_text = "Time Between Peaks Divided By Bounce Period",
+                            xaxis_title_text = "(Arb Units)",xaxis_range=[0,3])
+        fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/Periods.html",include_plotlyjs="cdn")
+        fig.show()
+
+class plots_v2:
+    def __init__(self,year):
+        self.year = year
+        self.Re = 6371
+        self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/reviewed_"
+
+        #not sure how to do this i hate myself fuck i suck at everything
+
+    def _to_equatorial(self,position,time,pitch):
+        """
+        take in spacepy coord class and ticktock class
+        """
+
+        blocal = irb.get_Bfield(time,position,extMag='T89')['Blocal']
+        beq = irb.find_magequator(time,position,extMag='T89')['Bmin']
+        eq_pitch = np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * beq / blocal))
+        return np.rad2deg(eq_pitch)
+
+    def _find_loss_cone(self,position,time):
+        foot = irb.find_footpoint(time,position,extMag='T89')
+        foot = foot['Bfoot']
+        eq = irb.find_magequator(time,position,extMag='T89')['Bmin']
+
+        pitch=90 #for particles mirroring at 100km
+        return np.rad2deg(np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * eq / foot)))
+
+    def _bounce_period(self,times,energy = 1):
+        """
+        calculates electron bounce period at edge of loss cone
+        energy in MeV
+        """
+        start = times[0]
+        end = times[-1]
+        dataObj = sp.OrbitData(date=start)
+        orbitInfo = dataObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
+        if  (orbitInfo['GEO_Lat'].to_numpy() / self.Re)[0]>0:
+            self.hemisphere = "N"
+        else:
+            self.hemisphere = "S"
+
+        X = (orbitInfo['GEI_X'].to_numpy() / self.Re)[0]
+        Y = (orbitInfo['GEI_Y'].to_numpy() / self.Re)[0]
+        Z = (orbitInfo['GEI_Z'].to_numpy() / self.Re)[0]
+        position  = np.array([X,Y,Z])
+        ticks = Ticktock(times[0])
+        coords = spc.Coords(position,'GEI','car')
+
+        Lstar = irb.get_Lstar(ticks,coords,extMag='0')
+        Lstar = abs(Lstar['Lm'][0])
+
+        # Lstar = orbitInfo['L_Shell'].to_numpy()[0]
+        self.Lstar = Lstar
+        loss_cone = self._find_loss_cone(coords,ticks) #in degrees
+        mc2 = .511 #elec rest mass
+        beta = np.sqrt(energy/mc2)*np.sqrt(2 + energy/mc2) / (1 + energy/mc2)
+
+        period = .117 * Lstar * (1 - .4635 * np.sin(np.deg2rad(loss_cone))**.75) / beta
+        return period[0]
+
+    def _compute_bounce_stats(self,data,peaks,times):
+        """
+        peaks are times of where bursts are
+        """
+        time_diff = pd.Series(np.diff(peaks)).mean(numeric_only=False).total_seconds()
+
+        #how much burst has decreased
+        subtracted = data - data.rolling(10,min_periods=1).quantile(.1)
+
+        first_peak = float(subtracted.loc[peaks[0]])
+        last_peak = float(subtracted.loc[peaks[1]])
+        if first_peak == float(0):
+            #what the fuck
+            print("peak was zero for some reason")
+            first_peak = float(subtracted.loc[peaks[1]])
+            last_peak = float(subtracted.loc[peaks[2]])
+
+        percent_diff = (first_peak - last_peak) / first_peak * 100
+
+        #need to find bounce period of spacecraft
+        period = self._bounce_period(times)
+
+        time_in_period = time_diff/period
+
+        return time_diff,percent_diff,time_in_period
+
+    def _search(self,bounce_period,num):
+
+        counts_file = self.counts_file+str(self.year)+".csv"
+        counts = pd.read_csv(counts_file,header=None,names=["Time","Counts","Peaks","Burst"],usecols=[0,1,2,3])
+        counts['Time'] = pd.to_datetime(counts['Time'])
+        peaks = counts[counts["Peaks"]==1][["Time","Burst"]]
+        indices = list(set(peaks["Burst"].to_numpy()))
+        peaks = peaks.set_index(["Burst"])
+        counts = counts.set_index(['Burst',"Time"])["Counts"]
+
+        times_list    = []
+        percents_list = []
+        periods_list  = []
+        hemisphere_list = []
+        counts_master_list = []
+        lstar_list = []
+        count = 0
+        for index in indices:
+            print(index)
+            data = counts.loc[index]
+            curr_peak_times = peaks.loc[index]["Time"].to_numpy().tolist()
+
+            if not curr_peak_times:
+                continue
+                print("found rejected bounce")
+
+            start = curr_peak_times[0]
+            end   = curr_peak_times[-1]
+
+            time_diff,percent_diff,time_in_period = self._compute_bounce_stats(data,curr_peak_times,(start,end))
+
+            if .85*bounce_period < time_in_period < 1.15*bounce_period and self.Lstar<7:
+                counts_master_list.append(data)
+                hemisphere_list.append(self.hemisphere)
+                lstar_list.append(self.Lstar)
+                periods_list.append(time_in_period)
+                count+=1
+            else:
+                continue
+            if num==count:
+                break
+        return counts_master_list,hemisphere_list,lstar_list,periods_list
+    def plot(self,bounce_period=1,num=2):
+        counts,hemispheres,lstars,periods = self._search(bounce_period,num)
+        for i in range(num):
+            fig = px.line(counts[i])
+
+            fig.update_layout(title_text=f"L val: {lstars[i][0]:.1f}, Hemisphere: {hemispheres[i]}, Periods:{periods[i]:.1f}",
+                              xaxis_title_text="UTC",yaxis_title_text="Counts")
+            fig.show()
+
 class stats:
     def __init__(self):
         self.stats_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/stats.csv"
         self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"
         self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"
-
-        self.stats_file = "/media/wyatt/64A5-F009/corr_dat/stats.csv"
-        self.peaks_file = "/media/wyatt/64A5-F009/corr_dat/peaks_"
-        self.counts_file = "/media/wyatt/64A5-F009/corr_dat/accepted_"
+        #
+        # self.stats_file = "/media/wyatt/64A5-F009/corr_dat/stats.csv"
+        # self.peaks_file = "/media/wyatt/64A5-F009/corr_dat/peaks_"
+        # self.counts_file = "/media/wyatt/64A5-F009/corr_dat/accepted_"
 
         self.Re = 6371
 
@@ -456,7 +829,6 @@ class stats:
 
         #how much burst has decreased
         subtracted = data - data.rolling(10,min_periods=1).quantile(.1)
-        print(subtracted)
         first_peak = float(subtracted.loc[peaks[0]])
         last_peak = float(subtracted.loc[peaks[1]])
         if first_peak == float(0):
@@ -503,6 +875,11 @@ class stats:
             for index in indices:
                 data = counts.loc[index]
                 curr_peak_times = [pd.Timestamp(peak) for peak in peaks.loc[index][0]]
+                res = []
+                [res.append(x) for x in curr_peak_times if x not in res]
+
+                curr_peak_times=res
+
                 if not curr_peak_times:
                     continue
                     print("found rejected bounce")
@@ -532,8 +909,9 @@ class stats:
         df[["percent_diff","time_diff","period_comp"]] = np.abs(df[["percent_diff","time_diff","period_comp"]])
         num_bounces = len(df.index)
         fig = px.histogram(df[['percent_diff','hemisphere']][np.abs(df['percent_diff'])<100],nbins=25,color="hemisphere")
-
-        fig.update_layout(title_text = "Percent Difference Between 1st Two Peaks",
+        mean1 = (df[['percent_diff','hemisphere']][np.abs(df['percent_diff'])<100]).mean()
+        median1 = (df[['percent_diff','hemisphere']][np.abs(df['percent_diff'])<100]).median()
+        fig.update_layout(title_text = f"Percent Difference Between 1st Two Peaks, mean {mean1},median {median1}",
                     xaxis_title_text = "Percent")
         fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/PercentDiff.html",include_plotlyjs="cdn")
         fig.show()
@@ -544,9 +922,9 @@ class stats:
         fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/TimeDiff.html",include_plotlyjs="cdn")
         fig.show()
 
-        fig = px.histogram(df[['period_comp',"hemisphere"]],nbins=80,color="hemisphere")
+        fig = px.histogram(df[['period_comp',"hemisphere"]],nbins=37,color="hemisphere")
         fig.update_layout(title_text = "Time Between Peaks Divided By Bounce Period",
-                            xaxis_title_text = "(Arb Units)",xaxis_range=[0,5])
+                            xaxis_title_text = "(Arb Units)",xaxis_range=[0,3])
         fig.write_html("/home/wyatt/Documents/SAMPEX/bounce_figures/Periods.html",include_plotlyjs="cdn")
         fig.show()
 
@@ -685,11 +1063,15 @@ class plots:
             fig.show()
 
 if __name__ == '__main__':
-    plot_obj = plots(2002)
-    plot_obj.plot(bounce_period=3.3,num=8)
+    # gu = doubleCheck(None,2004)
+    # gu.mainloop()
+
+    plot_obj = plots_v2(1999)
+    plot_obj.plot(bounce_period=1.5,num=10)
     # year = 1994
     # blah = corrSearch(year)
     # blah.search()
     # gu = verifyGui(None,year)
     # gu.mainloop()
     #1998 08 16 164238
+    pass
