@@ -30,6 +30,7 @@ import plotly.express as px
 #     peak_obj = corr.peak_select(year)
 #     peak_obj.select()
 #make statistics
-stat_obj = corr.stats_v2(stats_file="stats_60keV_30deg",energy=.06,mirr=30)
-stat_obj.generate_stats(use_years=[1994,1996,1997,1999,2001,2002,2003,2004])
+# stat_obj = corr.stats_v2(stats_file="stats_60keV_30deg",energy=.06,mirr=30)
+stat_obj=corr.stats()
+# stat_obj.generate_stats(use_years=[1994,1996,1997,1999,2001,2002,2003,2004])
 stat_obj.plot()

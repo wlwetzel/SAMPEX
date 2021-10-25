@@ -6,7 +6,7 @@ import plotly.express as px
 from scipy import signal
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
+import plotly.io as pio
 import numpy as np
 
 year = 1994
@@ -21,9 +21,6 @@ peaks_4 = [58.06,58.56,59.12,59.7]
 peaks = [peaks_1,peaks_2,peaks_3,peaks_4]
 bounces = [np.mean(np.diff(peak)) for peak in peaks]
 std = [np.std(np.diff(peak)) for peak in peaks]
-print(bounces)
-print(std)
-
 def _transform_data(data):
     """
     data: pandas dataframe, 20ms SAMPEX count data
@@ -84,7 +81,7 @@ data = data[start:end]
 anno_loc_0 = [pd.to_datetime("1994150221644",format="%Y%j%H%M%S",utc=True)
               ,2000,f"{bounce_periods[0]:.2f} +/- {std_bounce[0]:.2f} bounces"]
 anno_loc_1 = [pd.to_datetime("1994150221647",format="%Y%j%H%M%S",utc=True)
-              ,2000,f"{bounce_periods[1]:.2f} +/- {std_bounce[1]:.2f} bounces"]
+              ,1900,f"{bounce_periods[1]:.2f} +/- {std_bounce[1]:.2f} bounces"]
 anno_loc_2 = [pd.to_datetime("1994150221649",format="%Y%j%H%M%S",utc=True)
               ,1800,f"{bounce_periods[2]:.2f} +/- {std_bounce[2]:.2f} bounces"]
 anno_loc_3 = [pd.to_datetime("1994150221658",format="%Y%j%H%M%S",utc=True)
@@ -100,7 +97,10 @@ for anno in anno_list:
                                 size=16,
                                 color="Black")
                         )
-fig.show()
+write_path = "/home/wyatt/Documents/SAMPEX/bounce_figures/"
+fig.write_html(write_path + "case_study.html",include_plotlyjs="cdn")
+pio.write_image(fig, write_path + 'case_study.eps',scale=1 ,width=1500, height=700)
+# fig.show()
 
 # kernel = _load_artifical_kernel(.3)
 # corr = _correlate(data,kernel)
