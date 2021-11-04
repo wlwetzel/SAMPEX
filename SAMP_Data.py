@@ -330,7 +330,6 @@ class OrbitData:
 
         # Add date information
         col_list.extend(self._col_names[0:3])
-
         data = pd.read_csv(self.filename, sep=' ', header=None,
                                parse_dates={'Time': self._col_names[0:3]},
                                date_parser=self.date_converter,
@@ -340,6 +339,7 @@ class OrbitData:
                                skiprows=list(range(0, 60)),
                                error_bad_lines=False,
                                skipinitialspace=True).set_index('Time')
+
         data = data[
             ~data.index.duplicated(keep='first')]
         data.sort_index()
@@ -358,7 +358,6 @@ class OrbitData:
 
         # Add date information
         col_list.extend(self._col_names[0:3])
-
 
         with open(self.filename,'r') as f :
             lineNumber = 0
