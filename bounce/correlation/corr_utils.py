@@ -847,7 +847,7 @@ class plots:
 
             time_diff,percent_diff,time_in_period = self._compute_bounce_stats(data,curr_peak_times,(start,end))
 
-            if .85*bounce_period < time_in_period < 1.15*bounce_period and self.Lstar<4:
+            if .75*bounce_period < time_in_period < 1.25*bounce_period and self.Lstar<7:
                 counts_master_list.append(data)
                 hemisphere_list.append(self.hemisphere)
                 lstar_list.append(self.Lstar)
@@ -871,8 +871,8 @@ if __name__ == '__main__':
     # gu = doubleCheck(None,2004)
     # gu.mainloop()
 
-    plot_obj = plots(1999)
-    plot_obj.plot(bounce_period=.5,num=10)
+    plot_obj = plots(1996)
+    plot_obj.plot(bounce_period=1.5,num=20)
     # year = 1994
     # blah = corrSearch(year)
     # blah.search()
