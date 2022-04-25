@@ -127,7 +127,7 @@ class corrSearch:
     def search(self):
         chunk_size = 250 #5s / 20ms * 1000ms/s
         # kernels = [self._load_kernel(i) for i in range(5)]
-        distances = [.05,.75,.1,.15,.2,.3,.5,.75,.8,1.0]
+        distances = [.05,.75,.1,.15,.2,.3,.5,.8,1.0]
         kernels = [self._load_artifical_kernel(dist) for dist in distances]
         days = ['00' + str(i) for i in range(1,10)] + ['0' + str(i) for i in range(10,100)] + [str(i) for i in range(100,366)]
         #loop through one day at a time
@@ -495,8 +495,19 @@ class stats:
         start = times[0]
         end = times[-1]
         dataObj = sp.OrbitData(date=start)
-        orbitInfo = dataObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat',"MLT"])
-        if  (orbitInfo['GEO_Lat'].to_numpy() / self.Re)[0]>0:
+        orbitInfo = dataObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),
+                                            parameters=['GEI_X','GEI_Y','GEI_Z',
+                                                        'L_Shell','GEO_Lat',"MLT","GEO_Long",
+                                                        "GEI_VX","GEI_VY","GEI_VZ",
+                                                        "Magnetic_Lat","Altitude"])
+        self.lat = (orbitInfo['GEO_Lat'].to_numpy())[0]
+        self.lon = (orbitInfo['GEO_Long'].to_numpy())[0]
+        self.vx  = (orbitInfo['GEI_VX'].to_numpy())[0]
+        self.vy  = (orbitInfo['GEI_VY'].to_numpy())[0]
+        self.vz  = (orbitInfo['GEI_VZ'].to_numpy())[0]
+        self.mlat = (orbitInfo['Magnetic_Lat'].to_numpy())[0]
+        self.alt =  (orbitInfo['Altitude'].to_numpy())[0]
+        if  (orbitInfo['GEO_Lat'].to_numpy())[0]>0:
             self.hemisphere = "N"
         else:
             self.hemisphere = "S"
@@ -532,13 +543,13 @@ class stats:
         peaks are times of where bursts are
         """
         time_diff = pd.Series(np.diff(peaks)).mean(numeric_only=False).total_seconds()
+        total_diff = (peaks[-1] - peaks[0]).total_seconds()
         # print(pd.Series(np.diff(peaks)))
         #how much burst has decreased
         subtracted = data - data.rolling(10,min_periods=1).quantile(.1)
         first_peak = float(subtracted.loc[peaks[0]])
         last_peak = float(subtracted.loc[peaks[1]])
         if first_peak == float(0):
-            #what the fuck
             print("peak was zero for some reason")
             first_peak = float(subtracted.loc[peaks[1]])
             last_peak = float(subtracted.loc[peaks[2]])
@@ -550,9 +561,21 @@ class stats:
 
         time_in_period = time_diff/period
 
-        return time_diff,percent_diff,time_in_period
+        return time_diff,percent_diff,time_in_period,total_diff
+
+    def _compute_drift(self):
+        """
+        velocity in Re/s
+        """
+        energy = 1 #MeV
+        time = 60 * 62.7 / (self.Lstar*energy) #seconds
+        vel = 2 * np.pi * (1 + self.alt/self.Re) * np.cos(np.deg2rad(self.mlat)) / time
+        return vel
 
     def generate_stats(self,use_years="All"):
+        """
+        stats file: ["time_diff","percent_diff","periods","hemisphere","L","MLT","lat","lon","vx","vy","vz","timestamp","drift_vel","total_diff"]
+        """
         try:
             os.remove(self.stats_file)
         except:
@@ -577,6 +600,15 @@ class stats:
             hemisphere_list = []
             lstar_list = []
             mlt_list = []
+            lat_list = []
+            lon_list = []
+            vx_list = []
+            vy_list = []
+            vz_list = []
+            timestamps_list = []
+            drift_velocity_list = []
+            total_diff_list = []
+            alt_list = []
             for index in indices:
                 data = counts.loc[index]
                 curr_peak_times = peaks.loc[index]["Time"].to_numpy().tolist()
@@ -588,8 +620,8 @@ class stats:
                 start = curr_peak_times[0]
                 end   = curr_peak_times[-1]
 
-                time_diff,percent_diff,time_in_period = self._compute_bounce_stats(data,curr_peak_times,(start,end),self.energy)
-
+                time_diff,percent_diff,time_in_period,total_diff = self._compute_bounce_stats(data,curr_peak_times,(start,end),self.energy)
+                drift_vel = self._compute_drift()
                 if self.Lstar < 7.0:
                     if percent_diff!=None:
                         times_list.append(time_diff)
@@ -598,21 +630,32 @@ class stats:
                         hemisphere_list.append(self.hemisphere)
                         lstar_list.append(self.Lstar[0])
                         mlt_list.append(self.mlt)
+                        lat_list.append(self.lat)
+                        lon_list.append(self.lon)
+                        vx_list.append(self.vx)
+                        vy_list.append(self.vy)
+                        vz_list.append(self.vz)
+                        timestamps_list.append(curr_peak_times[0]) #single peak time for reference
+                        drift_velocity_list.append(drift_vel[0])
+                        total_diff_list.append(total_diff)
+                        alt_list.append(self.alt)
                 else:
                     continue
 
             df = pd.DataFrame(data = {'time_diff':times_list,
                 'percent_diff':percents_list,'period_comp':periods_list,
-                'hemisphere':hemisphere_list,'lstars':lstar_list,"MLT":mlt_list})
+                'hemisphere':hemisphere_list,'lstars':lstar_list,"MLT":mlt_list,
+                'lat':lat_list,"lon":lon_list,"vx":vx_list,"vy":vy_list,"vz":vz_list,
+                "timestamp":timestamps_list,"drift_vel":drift_velocity_list,
+                "total_diff":total_diff_list,"alt":alt_list})
             df.to_csv(self.stats_file,mode="a",header=None)
 
     def plot(self):
-        df = pd.read_csv(self.stats_file,names = ["time_diff","percent_diff",
-                        "period_comp","hemisphere","L","MLT"],usecols=[1,2,3,4,5,6])
+        df = pd.read_csv(self.stats_file,names = ["time_diff","percent_diff","periods","hemisphere","L","MLT","lat","lon","vx","vy","vz","timestamp"]
+                         ,usecols=[1,2,3,4,5,6,7,8,9,10,11,12])
         df[["percent_diff","time_diff","period_comp"]] = np.abs(df[["percent_diff","time_diff","period_comp"]])
-        df = df[df["period_comp"]<3]
+        df = df[df["period_comp"]<2]
         num_bounces = len(df.index)
-        fig = px.histogram(df[['percent_diff','hemisphere']][np.abs(df['percent_diff'])<100],nbins=25,color="hemisphere")
         df_hems = df[np.abs(df['percent_diff'])<100].set_index("hemisphere")["percent_diff"]
         means = df_hems.groupby(level="hemisphere").mean()
         medians = df_hems.groupby(level="hemisphere").median()
@@ -621,10 +664,25 @@ class stats:
         median_N = medians["N"]
         median_S = medians["S"]
 
-        fig.update_layout(title_text = f"Percent Difference Between 1st Two Peaks, Means: N:{mean_N:.0f} S:{mean_S:.0f},Medians: N:{median_N:.0f} S:{median_S:.0f}, " +str(self.energy)+" MeV",
+        #old percent diff histogram with north and south separated
+        # fig = px.histogram(df[['percent_diff','hemisphere']][np.abs(df['percent_diff'])<100],nbins=25,color="hemisphere")
+        # fig.update_layout(title_text = f"Percent Difference Between 1st Two Peaks, Means: N:{mean_N:.0f} S:{mean_S:.0f},Medians: N:{median_N:.0f} S:{median_S:.0f}, " +str(self.energy)+" MeV",
+        #             xaxis_title_text = "Percent")
+        # fig.write_html(self.figure_path+self.name + "PercentDiff.html",include_plotlyjs="cdn")
+        # fig.show()
+
+        """
+        separated bounces about 1 and 1/2
+        """
+        half_df = df[df["period_comp"]<.6][df["period_comp"]>.4]
+        whole_df = df[df["period_comp"]<1.1][df["period_comp"]>.9]
+
+        fig = px.histogram(whole_df[['percent_diff']][np.abs(whole_df['percent_diff'])<100],nbins=25)
+        fig.update_layout(title_text = "Percent Difference Between 1st Two Peaks",
                     xaxis_title_text = "Percent")
         fig.write_html(self.figure_path+self.name + "PercentDiff.html",include_plotlyjs="cdn")
         fig.show()
+
 
         fig = px.histogram(df[['time_diff']],nbins=40)
         fig.update_layout(title_text = f"Average Time Diff Between Peaks, Total Number of Bouncing Microbursts: {num_bounces}, "+str(self.energy)+" MeV",
@@ -638,7 +696,26 @@ class stats:
         fig.write_html(self.figure_path + self.name + "Periods.html",include_plotlyjs="cdn")
         fig.show()
 
-        two_histogram=1
+        """
+        bounce locations mapped to earth
+        """
+        fig = go.Figure(data=go.Scattergeo(
+            lon=df["lon"],
+            lat=df["lat"],
+            mode='markers',
+            marker=dict(color=df["period_comp"],
+                        colorscale='Viridis',
+                        showscale=True)
+        ))
+        fig.update_traces(marker_colorbar=dict(title="Time Diff (Bounces)"),
+                          marker=dict(size=5),
+                          text=df["period_comp"].to_numpy())
+
+        fig.update_layout(title_text="Lat,Lon locations of bouncing microbursts")
+        fig.write_image("/home/wyatt/Documents/SAMPEX/bounce_figures/important/geo.png")
+        fig.show()
+
+        two_histogram=0
         if two_histogram:
             df["in_out"] = "Inner"
             df["in_out"][df["L"]>4.5]="Outer"
@@ -674,10 +751,12 @@ class stats:
                       ticktext = ["0","4","8","12","16","20"]
                     )))
             fig.update_traces(marker_colorbar=dict(title="Time Diff (Bounces)"),
+                              marker=dict(size=5),
                               text=df["period_comp"].to_numpy())
+            fig.write_image("/home/wyatt/Documents/SAMPEX/bounce_figures/important/dial.png")
             fig.show()
 
-        double_color=1
+        double_color=0
         if double_color:
             lesserDF = df[df["L"]<4.5]
             greaterDF = df[df["L"]>4.5]
@@ -871,8 +950,8 @@ if __name__ == '__main__':
     # gu = doubleCheck(None,2004)
     # gu.mainloop()
 
-    plot_obj = plots(1996)
-    plot_obj.plot(bounce_period=1.5,num=20)
+    # plot_obj = plots(1996)
+    # plot_obj.plot(bounce_period=1.5,num=20)
     # year = 1994
     # blah = corrSearch(year)
     # blah.search()

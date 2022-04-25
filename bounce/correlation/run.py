@@ -30,7 +30,17 @@ import plotly.express as px
 #     peak_obj = corr.peak_select(year)
 #     peak_obj.select()
 #make statistics
-stat_obj = corr.stats(stats_file="stats_60keV_30deg",energy=.06,mirr=30)
-# stat_obj=corr.stats()
-# stat_obj.generate_stats(use_years=[1994,1996,1997,1999,2001,2002,2003,2004])
-stat_obj.plot()
+# stat_obj = corr.stats(stats_file="stats_60keV_30deg",energy=.06,mirr=30)
+stat_obj=corr.stats()
+stat_obj.generate_stats(use_years=[1994,1996,1997,1999,2001,2002,2003,2004])
+# stat_obj.plot()
+# import numpy as np
+# import plotly.graph_objects as go
+# r, theta = np.mgrid[0.1:1:10j, 0:360:20j]
+# color = np.random.random(r.shape)
+# fig = go.Figure(go.Barpolar(
+#     r=r.ravel(),
+#     theta=theta.ravel(),
+#     marker_color=color.ravel()),)
+# fig.update_layout(polar_bargap=0)
+# fig.show()

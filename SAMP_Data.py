@@ -260,6 +260,7 @@ class OrbitData:
     _data_dir = '/home/wyatt/Documents/SAMPEX/OrbitData'
     # _data_dir = "/media/wyatt/64A5-F009/OrbitData"
     def __init__(self, filename=None, date=None):
+        self.data_dir = '/home/wyatt/Documents/SAMPEX/OrbitData/'
         if filename is None and date is None:
             raise TypeError("Either a time or a file is needed")
         elif filename is None:
@@ -327,7 +328,6 @@ class OrbitData:
             col_list = []
         else:
             col_list = parameters.copy()
-
         # Add date information
         col_list.extend(self._col_names[0:3])
         data = pd.read_csv(self.filename, sep=' ', header=None,
@@ -428,16 +428,57 @@ class OrbitData:
                    int(time[9:]),
                     unit='s')
 
+    def load_year(self,year,parameters=None):
+        files = [f for f in listdir(self._data_dir)
+                 if isfile(join(self._data_dir, f))]
+        found_file = False
+        file_list = []
+        for data_filename in files:
+            # Checks each file in in the catlog to see if it's valid.
+            self._init_filename(join(self._data_dir, data_filename))
+            if str(year) in data_filename:
+                file_list.append(data_filename)
+        #now we need to load all the files that have that year
+        if parameters is None:
+            col_list = []
+        else:
+            col_list = parameters.copy()
+        # Add date information
+        col_list.extend(self._col_names[0:3])
+        data = pd.DataFrame()
+        # file_list = [file_list[0],file_list[1]]
+        for file in file_list:
+            data = data.append(pd.read_csv( self.data_dir + file, sep=' ', header=None,
+                                   parse_dates={'Time': self._col_names[0:3]},
+                                   date_parser=self.date_converter,
+                                   keep_date_col=True,
+                                   names=self._col_names,
+                                   usecols=col_list,
+                                   skiprows=list(range(0, 60)),
+                                   error_bad_lines=False,
+                                   skipinitialspace=True).set_index('Time')
+                                   )
+        data = data[
+            ~data.index.duplicated(keep='first')]
+        data = data.sort_index()
+        return data
+
+
 class sampexStats:
+    """
+    Contains functions to to get misc stats from a specific time for SAMPEX HILT
+    """
     def __init__(self,time):
         orbitObj = OrbitData(date=time)
         start = time-pd.Timedelta("10s")
         end = time+pd.Timedelta("10s")
-        self.orbitInfo = orbitObj.read_time_range(pd.to_datetime(start),pd.to_datetime(end),parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell','GEO_Lat'])
-        print(self.orbitInfo["GEO_Lat"])
+        self.orbitInfo = orbitObj.read_time_range(pd.to_datetime(start),
+                                                  pd.to_datetime(end),
+                                                  parameters=['GEI_X','GEI_Y','GEI_Z','L_Shell',
+                                                              'GEO_Lat','GEO_Long','GEI_VX', 'GEI_VY', 'GEI_VZ',
+                                                              "Magnetic_Lat","Altitude"])
         self.orbitInfo = self.orbitInfo[start:end]
         self.Re = 6371
-
 
     def _find_loss_cone(self,position,time):
         foot = irb.find_footpoint(time,position,extMag='T89')
@@ -449,9 +490,8 @@ class sampexStats:
         pitch=90 #for particles mirroring at 100km
         return np.rad2deg(np.arcsin(np.sqrt(np.sin(np.deg2rad(pitch))**2 * eq / foot)))
 
-    def get_Lstar(self):
+    def get_L(self):
         return self.orbitInfo["L_Shell"]
-
 
     def get_bounce_period(self,energy = 1):
         """
@@ -483,8 +523,55 @@ class sampexStats:
         period = .117 * Lstar * (1 - .4635 * np.sin(np.deg2rad(loss_cone))**.75) / beta
         return period[0]
 
+    def get_velocity(self,coord="GEI"):
+
+        vel_df = self.orbitInfo[['GEI_VX', 'GEI_VY', 'GEI_VZ']] #km/s
+        vel_df = vel_df / self.Re
+        if coord=="GEI":
+            #upsample to 20ms
+            vel_df = vel_df.resample("20ms").interpolate(method="spline",order=3)
+            return vel_df
+        else:
+            #to make transformation matrix, we need only the time
+            time = self.orbitInfo.index[0]
+            bases = spc.Coords([[1,0,0],[0,1,0],[0,0,1]],'GEI','car')
+            bases.ticks = Ticktock([time]*3,'UTC')
+            transformation_matrix = bases.convert(coord,'car').data
+            transformation_matrix = np.array(transformation_matrix)
+            vectors=np.array(vel_df.values.tolist())
+            vel_RLL = vectors.dot(transformation_matrix)
+            df = pd.DataFrame({"vr":vel_RLL[:,0],"vlat":vel_RLL[:,1],"vlon":vel_RLL[:,2]}
+                              ,index=self.orbitInfo.index)
+            df = df.resample("20ms").interpolate(method="spline",order=3)
+            return df
+
+
+
+    def drift_velocity(self,energy,interp=None):
+        """
+        bounce averaged drift velocity at sampex's location for field aligned
+        particles
+        energy in MeV
+        result in Re/s, in RLL coords [0,0,vel]
+
+        """
+        L = self.get_L() #type dataframe
+        time = 60 * 62.7 / (L*energy) #s
+        mlat = self.orbitInfo["Magnetic_Lat"]
+        alt = self.orbitInfo["Altitude"]
+        vel = 2 * np.pi * (1 + alt/self.Re) * np.cos(np.deg2rad(mlat)) / time
+        vel = vel.rename("vlon")
+        vel = vel.to_frame()
+        vel["vr"]=0
+        vel["vlat"]=0
+        vel = vel[["vr","vlat","vlon"]]
+        if interp is None:
+            return vel
+        else:
+            return vel.resample(interp).interpolate(method="spline",order=3)
 
 if __name__ == '__main__':
+    quit()
     filename = '/home/wyatt/Documents/SAMPEX/data/HILThires/State1/hhrr1993001.txt'
     month = '01'
     eventList = []

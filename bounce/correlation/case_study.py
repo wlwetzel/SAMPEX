@@ -9,6 +9,7 @@ from plotly.subplots import make_subplots
 import plotly.io as pio
 import numpy as np
 
+Re = 6371
 year = 1994
 day = 150
 start = pd.to_datetime("1994150221647",format="%Y%j%H%M%S",utc=True)-pd.Timedelta("10s")
@@ -67,51 +68,73 @@ def _load_artifical_kernel(distance):
             bounce += burst(times,1/n,n*distance)
     return pd.DataFrame(bounce)
 
+def make_annotated_fig():
+    obj = sp.sampexStats(start)
+    l_val = obj.get_Lstar().to_numpy()[0]
+    bounce_period = obj.get_bounce_period()
+    bounce_periods = [i / bounce_period for i in bounces]
+    std_bounce = [i/bounce_period for i in std]
+
+    obj  = sp.HiltData(date=str(year)+str(day))
+    data = obj.read(None,None)
+    data = data[start:end]
+
+    anno_loc_0 = [pd.to_datetime("1994150221644",format="%Y%j%H%M%S",utc=True)
+                  ,2000,f"{bounce_periods[0]:.2f} +/- {std_bounce[0]:.2f} bounces"]
+    anno_loc_1 = [pd.to_datetime("1994150221647",format="%Y%j%H%M%S",utc=True)
+                  ,1900,f"{bounce_periods[1]:.2f} +/- {std_bounce[1]:.2f} bounces"]
+    anno_loc_2 = [pd.to_datetime("1994150221649",format="%Y%j%H%M%S",utc=True)
+                  ,1800,f"{bounce_periods[2]:.2f} +/- {std_bounce[2]:.2f} bounces"]
+    anno_loc_3 = [pd.to_datetime("1994150221658",format="%Y%j%H%M%S",utc=True)
+                  ,1200,f"{bounce_periods[3]:.2f} +/- {std_bounce[3]:.2f} bounces"]
+
+    anno_list = [anno_loc_0,anno_loc_1,anno_loc_2,anno_loc_3]
+    fig = px.line(data)
+    fig.update_layout(title_text = f"Bounce Period = {bounce_period:.2f}s, L = {l_val:.2f}")
+    for anno in anno_list:
+        fig.add_annotation(x=anno[0],y=anno[1],text=anno[2],
+                            font=dict(
+                                    family="Courier New, monospace",
+                                    size=16,
+                                    color="Black")
+                            )
+    # write_path = "/home/wyatt/Documents/SAMPEX/bounce_figures/"
+    # fig.write_html(write_path + "case_study.html",include_plotlyjs="cdn")
+    # pio.write_image(fig, write_path + 'case_study.eps',scale=1 ,width=1500, height=700)
+    fig.show()
+
+def make_corr_figure():
+    kernel = _load_artifical_kernel(.3)
+    obj  = sp.HiltData(date=str(year)+str(day))
+    data = obj.read(None,None)
+    data = data[start:end]
+
+    corr = _correlate(data,kernel)
+
+    new_kern = len(corr) * [0]
+    new_kern[0:len(kernel.index)] = kernel.T.to_numpy()[0]
+
+    fig = make_subplots(rows=3,cols=1)
+    fig.add_trace(
+        go.Scatter(x=data.index,y=corr,name="Correlation"),row=3,col=1
+    )
+    fig.add_trace(
+        go.Scatter(x=data.index,y=data["Counts"].to_numpy(),name="SAMPEX Data"),row=2,col=1
+    )
+    fig.add_trace(
+        go.Scatter(x=data.index,y=new_kern,name="Kenrel"),row=1,col=1
+    )
+    write_path = "/home/wyatt/Documents/SAMPEX/bounce_figures/"
+    # fig.write_html(write_path + "corr_process.html",include_plotlyjs="cdn")
+    # pio.write_image(fig, write_path + 'corr_process.eps',scale=1 ,width=1500, height=700)
+
+    fig.show()
+
 
 obj = sp.sampexStats(start)
-l_val = obj.get_Lstar().to_numpy()[0]
-bounce_period = obj.get_bounce_period()
-bounce_periods = [i / bounce_period for i in bounces]
-std_bounce = [i/bounce_period for i in std]
-
-obj  = sp.HiltData(date=str(year)+str(day))
-data = obj.read(None,None)
-data = data[start:end]
-
-anno_loc_0 = [pd.to_datetime("1994150221644",format="%Y%j%H%M%S",utc=True)
-              ,2000,f"{bounce_periods[0]:.2f} +/- {std_bounce[0]:.2f} bounces"]
-anno_loc_1 = [pd.to_datetime("1994150221647",format="%Y%j%H%M%S",utc=True)
-              ,1900,f"{bounce_periods[1]:.2f} +/- {std_bounce[1]:.2f} bounces"]
-anno_loc_2 = [pd.to_datetime("1994150221649",format="%Y%j%H%M%S",utc=True)
-              ,1800,f"{bounce_periods[2]:.2f} +/- {std_bounce[2]:.2f} bounces"]
-anno_loc_3 = [pd.to_datetime("1994150221658",format="%Y%j%H%M%S",utc=True)
-              ,1200,f"{bounce_periods[3]:.2f} +/- {std_bounce[3]:.2f} bounces"]
-
-anno_list = [anno_loc_0,anno_loc_1,anno_loc_2,anno_loc_3]
-fig = px.line(data)
-fig.update_layout(title_text = f"Bounce Period = {bounce_period:.2f}s, L = {l_val:.2f}")
-for anno in anno_list:
-    fig.add_annotation(x=anno[0],y=anno[1],text=anno[2],
-                        font=dict(
-                                family="Courier New, monospace",
-                                size=16,
-                                color="Black")
-                        )
-write_path = "/home/wyatt/Documents/SAMPEX/bounce_figures/"
-fig.write_html(write_path + "case_study.html",include_plotlyjs="cdn")
-pio.write_image(fig, write_path + 'case_study.eps',scale=1 ,width=1500, height=700)
-# fig.show()
-
-# kernel = _load_artifical_kernel(.3)
-# corr = _correlate(data,kernel)
-#
-# fig = make_subplots(rows=2,cols=1)
-#
-# fig.add_trace(
-#     go.Scatter(x=data.index,y=corr,name="Correlation"),row=2,col=1
-# )
-# fig.add_trace(
-#     go.Scatter(x=data.index,y=data["Counts"].to_numpy(),name="SAMPEX Data"),row=1,col=1
-# )
-#
-# fig.show()
+vel = obj.get_velocity(coord="RLL")
+drift = obj.drift_velocity(1,interp="20ms")
+diff = drift - vel
+diff["abs"] = (diff["vlat"]**2 + diff["vlon"]**2 + diff["vr"]**2)**.5
+print(drift)
+print(vel)
