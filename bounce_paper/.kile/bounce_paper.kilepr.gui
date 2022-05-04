@@ -1,0 +1,30 @@
+[General]
+kile_livePreviewEnabled=true
+kile_livePreviewStatusUserSpecified=false
+kile_livePreviewTool=LivePreview-PDFLaTeX
+lastDocument=
+
+[document-settings,item:bounce_paper.tex]
+Bookmarks=
+Encoding=
+Highlighting=LaTeX
+Highlighting Set By User=false
+Indentation Mode=normal
+Mode=LaTeX
+Mode Set By User=false
+
+[item:bounce_paper.kilepr]
+open=false
+order=-1
+
+[item:bounce_paper.tex]
+open=true
+order=0
+
+[view-settings,view=0,item:bounce_paper.tex]
+CursorColumn=0
+CursorLine=18
+Dynamic Word Wrap=true
+JumpList=
+TextFolding=[]
+ViMarks=
