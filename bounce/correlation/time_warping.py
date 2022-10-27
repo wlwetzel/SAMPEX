@@ -229,10 +229,10 @@ def stretch(longer, short):
     short = short/np.max(short)
     for i in range(len(longer)-len(short)*2):
         #array[start:stop:step]
-        
+
         cost[i] = min(np.mean(longer[i:i+len(short)] - short),
                       np.mean(longer[i:i+len(short)*2:2] - short))
-    return cost    
+    return cost
 
 
 a = kernel.flatten()

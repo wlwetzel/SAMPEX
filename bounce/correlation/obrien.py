@@ -156,14 +156,20 @@ class obrienDat:
         return orbitInfo["L_Shell"][0],orbitInfo["MLT"][0]
 
     def calc_stats(self):
+        if os.path.exists(self.write_path):
+            os.remove(self.write_path)
+
         orb = sp.OrbitData(filename="/home/wyatt/Documents/SAMPEX/OrbitData/PSSet_6sec_1993364_1994025.txt")
+        #never fixed the way it starts the class, feed it any existing file, will not be used 
 
         for year in self.years:
             l_list = []
             mlt_list = []
+            mlat_list = []
             #need to remove the "time" rows from the data
             times = pd.read_csv(self.path+str(year)+".csv",parse_dates=True,usecols=[1]).to_numpy().flatten()
-            data = orb.load_year(year,parameters=["L_Shell","MLT"])
+            data = orb.load_year(year,parameters=["L_Shell","MLT","Magnetic_Lat"])
+
             tot = len(times)
             for ind in range(tot):
                 s = data.iloc[abs(data.index - pd.to_datetime(times[ind],utc=True)).argmin()]
@@ -171,13 +177,15 @@ class obrienDat:
                 # s = data.loc[data.index.unique()[data.index.unique().get_loc(time, method='nearest')]]
                 l_list.append(s['L_Shell'])
                 mlt_list.append(s["MLT"])
-                print(float(ind)/tot * 100,end='\r')
-            l_mlt_frame = pd.DataFrame(data = {"L":l_list,"MLT":mlt_list})
+                mlat_list.append(s["Magnetic_Lat"])
+                
+                # print(float(ind)/tot * 100,end='\r')
+            l_mlt_frame = pd.DataFrame(data = {"L":l_list,"MLT":mlt_list,"mlat":mlat_list})
             l_mlt_frame.to_csv(self.write_path,mode='a',header=False)
             print(f"{year} done")
 
     def plot_stats(self):
-        df = pd.read_csv(self.write_path,header=None,names=["L","MLT"])
+        df = pd.read_csv(self.write_path,header=None,names=["L","MLT","mlat"])
         df = df[df["L"]<10]
         # fig = go.Figure(data=
         #     go.Scatterpolar(
@@ -225,21 +233,30 @@ class obrienDat:
         fig = px.histogram(df["L"],nbins=20)
         fig.update_layout(xaxis_title_text="L-Shell",title_text="L-Shell Occurence of Microbursts")
         fig.show()
+        fig = px.histogram(df[df["mlat"]<0]["mlat"],nbins=100)
+        # fig = px.histogram(df["mlat"])
+        fig.update_layout(xaxis_title_text="Magnetic Latitude (deg.)",
+                          title_text="Magnetic Latitdue Occurrence of Microbursts Observed by SAMPEX, (Mlat<0)",
+                          showlegend=False)
+        fig.show()
 
-#[1994,1996,1997,1999,2001,2002
-# years = [1994,1996,
-years=[1994,1996,1997,1999,2001,2002,2003,2004]
-# years = [2003,2004]
-"""
-DO NOT TOUCH BELOW
-"""
-# for year in years:
-#     blah = obrienSearch(year)
-#     blah.search()
-#
-# ob = obrienClean()
-# ob.sort()
+if __name__ == '__main__':
+    
+    #[1994,1996,1997,1999,2001,2002
+    # years = [1994,1996,
+    years=[1994,1996,1997,1999,2001,2002,2003,2004]
+    # years = [2003,2004]
+    """
+    DO NOT TOUCH BELOW
+    """
+    # for year in years:
+    #     blah = obrienSearch(year)
+    #     blah.search()
+    #
+    # ob = obrienClean()
+    # ob.sort()
 
-dat = obrienDat(years)
-# dat.calc_stats()
-dat.plot_stats()
+    dat = obrienDat(years)
+    # dat.calc_stats()
+    dat.plot_stats()
+    

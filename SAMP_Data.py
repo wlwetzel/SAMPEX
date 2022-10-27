@@ -448,6 +448,8 @@ class OrbitData:
         data = pd.DataFrame()
         # file_list = [file_list[0],file_list[1]]
         for file in file_list:
+            
+
             data = data.append(pd.read_csv( self.data_dir + file, sep=' ', header=None,
                                    parse_dates={'Time': self._col_names[0:3]},
                                    date_parser=self.date_converter,

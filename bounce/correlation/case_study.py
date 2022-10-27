@@ -70,7 +70,7 @@ def _load_artifical_kernel(distance):
 
 def make_annotated_fig():
     obj = sp.sampexStats(start)
-    l_val = obj.get_Lstar().to_numpy()[0]
+    l_val = obj.get_L().to_numpy()[0]
     bounce_period = obj.get_bounce_period()
     bounce_periods = [i / bounce_period for i in bounces]
     std_bounce = [i/bounce_period for i in std]
@@ -98,9 +98,11 @@ def make_annotated_fig():
                                     size=16,
                                     color="Black")
                             )
-    # write_path = "/home/wyatt/Documents/SAMPEX/bounce_figures/"
+    fig.update_layout(showlegend=False)
+    write_path = "/home/wyatt/Documents/SAMPEX/bounce_figures/important/"
     # fig.write_html(write_path + "case_study.html",include_plotlyjs="cdn")
-    # pio.write_image(fig, write_path + 'case_study.eps',scale=1 ,width=1500, height=700)
+    pio.write_image(fig, write_path + 'case_study.png',scale=1,width=1500,height=700)
+
     fig.show()
 
 def make_corr_figure():
@@ -122,7 +124,7 @@ def make_corr_figure():
         go.Scatter(x=data.index,y=data["Counts"].to_numpy(),name="SAMPEX Data"),row=2,col=1
     )
     fig.add_trace(
-        go.Scatter(x=data.index,y=new_kern,name="Kenrel"),row=1,col=1
+        go.Scatter(x=data.index,y=new_kern,name="Kernel"),row=1,col=1
     )
     write_path = "/home/wyatt/Documents/SAMPEX/bounce_figures/"
     # fig.write_html(write_path + "corr_process.html",include_plotlyjs="cdn")
@@ -131,10 +133,11 @@ def make_corr_figure():
     fig.show()
 
 
-obj = sp.sampexStats(start)
-vel = obj.get_velocity(coord="RLL")
-drift = obj.drift_velocity(1,interp="20ms")
-diff = drift - vel
-diff["abs"] = (diff["vlat"]**2 + diff["vlon"]**2 + diff["vr"]**2)**.5
-print(drift)
-print(vel)
+# obj = sp.sampexStats(start)
+# vel = obj.get_velocity(coord="RLL")
+# drift = obj.drift_velocity(1,interp="20ms")
+# diff = drift - vel
+# diff["abs"] = (diff["vlat"]**2 + diff["vlon"]**2 + diff["vr"]**2)**.5
+# print(drift)
+# print(vel)
+make_annotated_fig()

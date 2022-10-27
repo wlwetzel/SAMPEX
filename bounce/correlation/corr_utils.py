@@ -28,6 +28,8 @@ import os
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
+import plotly.io as pio
+pio.templates.default = "plotly_white"
 
 
 class corrSearch:
@@ -651,10 +653,11 @@ class stats:
             df.to_csv(self.stats_file,mode="a",header=None)
 
     def plot(self):
-        df = pd.read_csv(self.stats_file,names = ["time_diff","percent_diff","periods","hemisphere","L","MLT","lat","lon","vx","vy","vz","timestamp"]
+        df = pd.read_csv(self.stats_file,names = ["time_diff","percent_diff","period_comp","hemisphere","L","MLT","lat","lon","vx","vy","vz","timestamp"]
                          ,usecols=[1,2,3,4,5,6,7,8,9,10,11,12])
         df[["percent_diff","time_diff","period_comp"]] = np.abs(df[["percent_diff","time_diff","period_comp"]])
-        df = df[df["period_comp"]<2]
+        # df = df[df["period_comp"]<2]
+        # df = df[df["L"]>5]
         num_bounces = len(df.index)
         df_hems = df[np.abs(df['percent_diff'])<100].set_index("hemisphere")["percent_diff"]
         means = df_hems.groupby(level="hemisphere").mean()
@@ -684,10 +687,19 @@ class stats:
         fig.show()
 
 
-        fig = px.histogram(df[['time_diff']],nbins=40)
-        fig.update_layout(title_text = f"Average Time Diff Between Peaks, Total Number of Bouncing Microbursts: {num_bounces}, "+str(self.energy)+" MeV",
-                            xaxis_title_text = "Time Diff (s)")
+        fig = px.histogram(df[['time_diff']])
+
+        fig.update_traces(xbins=dict(
+                            start=0.0,
+                            end=4.0,
+                            size=.2
+        ))
+        ave = df[['time_diff']].mean().to_numpy()[0]
+        std = df[['time_diff']].std().to_numpy()[0]
+        fig.update_layout(title_text = f"Average Time Diff Between Peaks, Total Number of Bouncing Microbursts: {num_bounces}, <br> {str(self.energy)} MeV, Avg. {ave:.2f}+/-{std:.2f}",
+                            xaxis_title_text = "Time Diff (s)",xaxis_range=[0,4],showlegend=False)
         fig.write_html(self.figure_path + self.name + "TimeDiff.html",include_plotlyjs="cdn")
+        fig.write_image(self.figure_path + self.name + "TimeDiff.png")
         fig.show()
 
         fig = px.histogram(df[['period_comp']],nbins=40)
@@ -810,7 +822,99 @@ class stats:
                               text=greaterDF["period_comp"].to_numpy())
             fig.show()
 
-class plots:
+class plots(object):
+    """plotting utilities, separating each kind of plot into a command so I can mess with them individually"""
+    def __init__(self, stats_file="stats.csv"):
+        super(plots, self).__init__()
+        if stats_file == "stats.csv":
+            self.energy = "1_MeV"
+        else:
+            self.energy = "60_keV"
+
+        self.stats_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/"+stats_file
+        self.df = pd.read_csv(self.stats_file,names = ["time_diff","percent_diff","period_comp","hemisphere","L","MLT","lat","lon","vx","vy","vz","timestamp"]
+                         ,usecols=[1,2,3,4,5,6,7,8,9,10,11,12])
+        self.df[["percent_diff","time_diff","period_comp"]] = np.abs(self.df[["percent_diff","time_diff","period_comp"]])
+        self.df = self.df[self.df["period_comp"]<2]
+
+
+    def earth(self):
+        """
+        bounce locations mapped to earth
+        """
+        fig = go.Figure(data=go.Scattergeo(
+            lon=df["lon"],
+            lat=df["lat"],
+            mode='markers',
+            marker=dict(color=df["period_comp"],
+                        colorscale='Viridis',
+                        showscale=True)
+        ))
+        fig.update_traces(marker_colorbar=dict(title="Time Diff (Bounces)"),
+                          marker=dict(size=5),
+                          text=df["period_comp"].to_numpy())
+
+        fig.update_layout(title_text="Lat,Lon locations of bouncing microbursts")
+        fig.write_image("/home/wyatt/Documents/SAMPEX/bounce_figures/important/geo.png")
+        fig.show()
+
+    def kde_plot(self):
+        from sklearn.neighbors import KernelDensity
+        periods = self.df["period_comp"].to_numpy()
+        periods = periods[:,np.newaxis] #kernel density takes a 2d array
+        bandwidth = 1.06 * np.std(periods[:,0]) * min(periods.shape[0]**(-.2),np.subtract(*np.percentile(periods[:,0], [75, 25])) /1.34)#see kde wikipedia 
+        bandwidth=.04
+        kde = KernelDensity(kernel="gaussian",bandwidth=bandwidth).fit(periods)
+        #plot kde , 100 samples 0 to max
+        x_vals = np.linspace(0,np.max(periods[:,0]),100)[:,np.newaxis]
+        log_dens=kde.score_samples(x_vals)
+
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(go.Scatter(x=x_vals[:,0],
+                                 y=np.exp(log_dens),
+                                )
+                        )
+        fig.add_trace(go.Scatter(x = periods[:,0],
+                                 y= -0.005 - 0.05 * np.random.random(periods.shape[0]),
+                                 mode="markers",
+                                 name = "Time Differences")
+                    )
+        fig.update_traces(marker=dict(size=2))
+        fig.add_trace(go.Histogram(x=periods[:,0],
+                                    opacity=.5,
+                                    nbinsx=50,
+                                    name="Histogram of time differences"),secondary_y=True)
+
+        # fig.update_layout(showlegend=False)
+
+        fig.update_layout(legend=dict(
+            yanchor="top",
+            
+            xanchor="right",
+            x=.9
+        ))
+
+        fig.update_layout(title_text = "Time Between Peaks Divided By Bounce Period",
+                    xaxis_title_text = "Bounce Periods")
+        fig.update_layout(yaxis_title_text="Estimated distribution")
+        fig.update_yaxes(title_text="Number in bin",secondary_y=True)
+
+        fig.show()
+
+    def period_hist(self):
+        fig = px.histogram(self.df[['period_comp']],nbins=40)
+        fig.update_layout(title_text = "Time Between Peaks Divided By Bounce Period, "+self.energy.replace("_"," "),
+                            xaxis_title_text = "Bounce Periods")
+        # fig.write_html(self.figure_path + self.name + "Periods.html",include_plotlyjs="cdn")
+        fig.update_layout(showlegend=False)
+        fig.write_image("/home/wyatt/Documents/SAMPEX/bounce_figures/important/period_hist_"+self.energy+".png")
+
+        fig.show()
+
+
+        
+
+class plots_examples:
     def __init__(self,year):
         self.year = year
         self.Re = 6371
@@ -947,6 +1051,15 @@ class plots:
             fig.show()
 
 if __name__ == '__main__':
+    # obj = plots(stats_file="stats_60keV_30deg")
+    # obj = plots()
+    # obj.kde_plot()
+    # obj.period_hist()
+
+    obj = stats()
+    obj.plot()
+
+
     # gu = doubleCheck(None,2004)
     # gu.mainloop()
 
@@ -958,5 +1071,4 @@ if __name__ == '__main__':
     # gu = verifyGui(None,year)
     # gu.mainloop()
     #1998 08 16 164238
-    pass
-    quit()
+  
