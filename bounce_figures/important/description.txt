@@ -1,0 +1,19 @@
+Process
+Took cross correlation between bouncing microburst shaped "kernel" and SAMPEX
+data, then verified spots with high correlation by hand. Required that there
+was a microburst as defined by the obrien parameter. Chose peaks by hand.
+
+1MeV.png
+Took average time difference between peaks for each bounce. Calculated bounce
+period of 1MeV electrons mirroring at top of atmosphere at SAMPEX's current L.
+Divided time diff by bounce period, binned.
+
+60keV30degPeriods.png
+Same as above, but with 60keV electrons mirroring at 30deg
+
+case_study.png
+Example of four bouncing microbursts in a short time period, two with half
+bounce period time differences between peaks and two with whole bounce periods.
+
+dial.png
+L-MLT distribution of bounces with color representing the time diff/bounce period, some outliers were eliminated that were messing with the color gradient. 
