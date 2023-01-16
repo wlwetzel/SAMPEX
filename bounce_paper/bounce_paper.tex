@@ -206,15 +206,15 @@ These kernels are constructed of Gaussians with various separations ranging from
 We then take the cross correlation of the SAMPEX time series data and each of the kernels, and flag places with high correlation for manual review. 
 We also require that each flagged location contain a microburst as defined by the O'Brien parameter \cite{obrien_parameter}. 
 
-The algorithm initially identified 7107 candidates, which were narrowed down to 892 bouncing microbursts by hand. 
-Improvements could be made to the algorithm, as it has an extremely high false positive rate. 
+The algorithm initially identified 7107 candidates, which were narrowed down to 892 bouncing microbursts by hand, due to the detection method's extremely high false positive rate.
+
 
 \section{Location}
 With this collection of bonucing microbursts, the statistical properties of these events can be studied. 
 The majority of these events occur in two bands, between L shells $2$ and $4$, with a smaller population at $L>6$. 
 The occurrence characteristics of microbursts in SAMPEX data have been studied \cite{burst_occurrence} and microbursts are most frequent between $L=4$ and $L=6$; however, the bouncing microbursts found in this study are least likely to occur in this band. 
 This discrepancy could be cause by the sheer number of microbursts making it difficult to pick out bouncing microbursts; any unrelated microburst occuring in the middle of an observation of a bouincing microburst will mean that bouncing microburst will be rejected, possibly artificially deflating the frequency of observations in the band where microbursts are most likely to occur. 
-Most bouncing microbursts in this study occur in the morning sector between $0$ and $12$ magnetic local time, which aligns with the occurrence characteristics of microbursts in general as found by \citeA{burst_occurrence}.
+Most bouncing microbursts in this study occur in the morning sector between $0$ and $12$ magnetic local time, which aligns with the occurrence characteristics of microbursts in general as found by \cite{burst_occurrence}.
 
 \begin{figure}[h!]
 \includegraphics[width=\textwidth]{dial.png}
@@ -237,16 +237,17 @@ The data however suggest that a substantial number of the collected events are n
 
 Whistler mode chorus often occur in groups of short discrete elements. 
 There are several parameters used to characterize whistler mode chorus, including their repetition rate \cite{repetition_rate}.  
-Microbursts are often associated with chorus waves, and repetitive wave-particle interaction between chorus and electrons (at the equator?) could produce ``bouncing'' microbursts with time scales defined by the chorus repetition rate and not the bounce period of the electrons in the microburst. 
+Microbursts are often associated with chorus waves, and repetitive wave-particle interaction between chorus and electrons could produce ``bouncing'' microbursts with time scales defined by the chorus repetition rate and not the bounce period of the electrons in the microburst.
 
 \cite{repetition_rate} studied whistler mode chorus waves in $L>5$ and their repetition rates. 
 
+
 **********
-how to compare my data with theirs? most samples are $L<5$ 
+Not sure how useful this comparison will be, most of my samples are at $L<5$,  theirs are all $L>5$. In addition,  my data are all dawn to dayside, for which the average repetition rates are .53s and .81s. The average time between bounces is about .4s. In addition the error bars on the numbers for the shue study are .4 and .5, so I'm not sure what conclusions can be drawn from that anyway
 ******
 \section{Scale Sizes}
 Measurements of bouncing microbursts allow us to compute the local scale size of the microburst, and from that the equatorial scale size. 
-The loacl scale size of each microburst is computed as 
+The local scale size of each microburst (in units of Earth's radius) is computed as
 
 \begin{equation}
  l_{obs} = T v_D  = T \frac{2 \pi}{\tau_D} (1+ \frac{A}{R_e}) \cos \lambda 
@@ -257,7 +258,7 @@ where $T$ is the time between the first and last bounce observed, $v_D$ is the d
  \label{fig:local}
  \caption{Local scale size, calculated at SAMPEX's location at time of observation.}
 \end{figure}
-The resulting distribution of local scale sizes of the microbursts we have collected is presented in \ref{fig:local}.
+The resulting distribution of local scale sizes of the microbursts we have collected is presented in fig. \ref{fig:local}.
 
 We can convert the scale size at the location of the observation to the microburst's size at the equator with Gauss' law, setting the flux at SAMPEX's location equal to the flux at the equator:
 
@@ -283,19 +284,21 @@ where $r_{obs}$ is the distance from the center of the Earth to the location of 
 \section{Conclusions}
 ***
 
-should have comparison to other papers with estimations of scale size - Mike's FIREBIRD paper, blake 96, others?
-
-what does scale size tell us specifcally about microbursts? size of generation region? 
+what does scale size tell us specifcally about microbursts? size of generation region? total losses?
 
 ***
 
 The microbusrts studied here have scale sizes mostly on the order of $10^2$km.
-Previous stud(ies?) have found bouncing microbursts with equatorial scale sizes of $530$km \cite{fire_bounce}, others?.
+A previous study using the FIREBIRD cubesats  found a bouncing microburst with equatorial scale size of $530$km \cite{fire_bounce}, well within the distribution determined in this study.
 \cite{Blake96} observed that the relative infrequency of bouncing microbursts compared to solitary bursts indicates that most microbursts must have scale sizes of less than a few tens of kilometers, which was the minimum size of microburst that SAMPEX could observe bouncing. 
 The bouncing microbursts in this paper therefore represent the population of larger microbursts, not microbursts as a whole.
 It can be seen in Fig. \ref{fig:log_eq_scales} that the frequency of bouncing microbursts drops off substantially at lower scale sizes, which is as we would expect as SMAPEX is less able to observe bouncing microbursts of smaller scales. 
 
 These scale sizes are similar to the scale sizes of whistler mode chorus waves \cite{chorus_scales}, the primary candidate for the waves that generate microbursts.
+
+***
+should i plug booms? as an example of a future mission able to look at microbursts of smaller sizes?
+***
 %Text here ===>>> 
 
 %%
@@ -502,7 +505,7 @@ These scale sizes are similar to the scale sizes of whistler mode chorus waves \
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-\bibliography{/home/wyatt/LatexFiles/master}
+\bibliography{/home/wyatt/Documents/Latex/master}
 %
 % don't specify bibliographystyle
 

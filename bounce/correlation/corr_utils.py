@@ -2,7 +2,7 @@ import numpy as np
 import plotly.express as px
 import pandas as pd
 import sys
-sys.path.append("/home/wyatt/Documents/SAMPEX")
+sys.path.append("/home/wyatt/Projects/SAMPEX")
 import SAMP_Data as sp
 import plotly.graph_objects as go
 from scipy import signal
@@ -30,7 +30,7 @@ from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 import plotly.io as pio
 pio.templates.default = "plotly_white"
-
+Re = 6378
 
 class corrSearch:
     """docstring for corrSearch."""
@@ -40,8 +40,8 @@ class corrSearch:
         year: int, YYYY, year of SAMPEX data to search through
         """
         self.year = year
-        self.candidate_path = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/candidate_"+str(year)+".csv"
-        self.kernel_path = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/kernels.csv"
+        self.candidate_path = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/candidate_"+str(year)+".csv"
+        self.kernel_path = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/kernels.csv"
         try:
             os.remove(self.candidate_path)
         except:
@@ -185,8 +185,8 @@ class verifyGui(Tk):
     def __init__(self,  parent, year):
         Tk.__init__(self,parent)
         self.parent = parent
-        self.path =  "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/candidate_"+str(year)+".csv"
-        self.accepted_path = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
+        self.path =  "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/candidate_"+str(year)+".csv"
+        self.accepted_path = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
         self.num_accepted=0
         self.num_rejected=0
         try:
@@ -258,7 +258,7 @@ class verifyGui(Tk):
         self.refreshFigure()
 
     def flagBounce(self):
-        self.predictions.loc[self.bounce_num].to_csv("/home/wyatt/Documents/SAMPEX/generated_Data/flagged_Data.csv",
+        self.predictions.loc[self.bounce_num].to_csv("/home/wyatt/Projects/SAMPEX/generated_Data/flagged_Data.csv",
                                                      mode='a',header=False)
         self.refreshFigure()
 
@@ -275,9 +275,9 @@ class doubleCheck(Tk):
     def __init__(self,  parent, year):
         Tk.__init__(self,parent)
         self.parent = parent
-        self.accepted_path = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
-        self.reviewed_path = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/reviewed_"+str(year)+".csv"
-        self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"+str(year)+".csv"
+        self.accepted_path = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
+        self.reviewed_path = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/reviewed_"+str(year)+".csv"
+        self.peaks_file = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/peaks_"+str(year)+".csv"
 
         self.counter = 0
         try:
@@ -411,8 +411,8 @@ class doubleCheck(Tk):
 class peak_select:
     def __init__(self,year):
         self.year=year
-        self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
-        self.peaks_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/peaks_"+str(year)+".csv"
+        self.counts_file = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/accepted_"+str(year)+".csv"
+        self.peaks_file = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/peaks_"+str(year)+".csv"
         try:
             os.remove(self.peaks_file)
         except:
@@ -455,9 +455,9 @@ class stats:
         """
         self.mirror = mirr # if we want to specify manually a mirror lat
         self.energy=energy
-        self.stats_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/"+stats_file
-        self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/reviewed_"
-        self.figure_path = "/home/wyatt/Documents/SAMPEX/bounce_figures/"
+        self.stats_file = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/"+stats_file
+        self.counts_file = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/reviewed_"
+        self.figure_path = "/home/wyatt/Projects/SAMPEX/bounce_figures/"
         self.Re = 6371
         if mirr != 1:
             self.name = str(energy*(10**-3))+"keV"+str(mirr) + "deg"
@@ -724,7 +724,7 @@ class stats:
                           text=df["period_comp"].to_numpy())
 
         fig.update_layout(title_text="Lat,Lon locations of bouncing microbursts")
-        fig.write_image("/home/wyatt/Documents/SAMPEX/bounce_figures/important/geo.png")
+        fig.write_image("/home/wyatt/Projects/SAMPEX/bounce_figures/important/geo.png")
         fig.show()
 
         two_histogram=0
@@ -765,7 +765,7 @@ class stats:
             fig.update_traces(marker_colorbar=dict(title="Time Diff (Bounces)"),
                               marker=dict(size=5),
                               text=df["period_comp"].to_numpy())
-            fig.write_image("/home/wyatt/Documents/SAMPEX/bounce_figures/important/dial.png")
+            fig.write_image("/home/wyatt/Projects/SAMPEX/bounce_figures/important/dial.png")
             fig.show()
 
         double_color=0
@@ -830,12 +830,15 @@ class plots(object):
             self.energy = "1_MeV"
         else:
             self.energy = "60_keV"
-
-        self.stats_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/"+stats_file
-        self.df = pd.read_csv(self.stats_file,names = ["time_diff","percent_diff","period_comp","hemisphere","L","MLT","lat","lon","vx","vy","vz","timestamp"]
-                         ,usecols=[1,2,3,4,5,6,7,8,9,10,11,12])
+        names  = ["time_diff","percent_diff","period_comp",
+                "hemisphere","L","MLT","lat","lon","vx","vy","vz",
+                 "timestamp","drift_vel","total_diff","alt"]
+        self.stats_file = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/"+stats_file
+        self.df = pd.read_csv(self.stats_file,names = names
+                         ,usecols=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15])
         self.df[["percent_diff","time_diff","period_comp"]] = np.abs(self.df[["percent_diff","time_diff","period_comp"]])
         self.df = self.df[self.df["period_comp"]<2]
+        self.df["dist"] =pd.DataFrame(data={"dist":self.df["total_diff"].to_numpy()*self.df["drift_vel"].to_numpy() *Re})
 
 
     def earth(self):
@@ -855,7 +858,7 @@ class plots(object):
                           text=df["period_comp"].to_numpy())
 
         fig.update_layout(title_text="Lat,Lon locations of bouncing microbursts")
-        fig.write_image("/home/wyatt/Documents/SAMPEX/bounce_figures/important/geo.png")
+        fig.write_image("/home/wyatt/Projects/SAMPEX/bounce_figures/important/geo.png")
         fig.show()
 
     def kde_plot(self):
@@ -901,24 +904,129 @@ class plots(object):
 
         fig.show()
 
-    def period_hist(self):
-        fig = px.histogram(self.df[['period_comp']],nbins=40)
-        fig.update_layout(title_text = "Time Between Peaks Divided By Bounce Period, "+self.energy.replace("_"," "),
-                            xaxis_title_text = "Bounce Periods")
+    def period_hist(self,Lrange=[0,7]):
+        grouped_L = self.df[(self.df["L"] > Lrange[0]) & (self.df["L"] < Lrange[1] ) ]
+        fig = px.histogram(grouped_L[['period_comp']],nbins=40)
+        fig.update_layout(title_text = "Time Between Peaks Divided By Bounce Period, "+self.energy.replace("_"," ")+f", L Shell {Lrange[0]}:{Lrange[1]}" ,
+                            xaxis_title_text = "Bounce Periods",yaxis_title_text="Count")
         # fig.write_html(self.figure_path + self.name + "Periods.html",include_plotlyjs="cdn")
         fig.update_layout(showlegend=False)
-        fig.write_image("/home/wyatt/Documents/SAMPEX/bounce_figures/important/period_hist_"+self.energy+".png")
+        fig.write_image("/home/wyatt/Projects/SAMPEX/bounce_figures/important/"+"period_hist_"+f"L{Lrange[0]}_{Lrange[1]}_"+self.energy+".png")
+        fig.show()
+
+    def scale_hist_local(self,Lrange = [0,7]):
+        grouped_L = self.df[(self.df["L"] > Lrange[0]) & (self.df["L"] < Lrange[1] ) ]
+
+        fig=px.histogram(grouped_L["dist"])
+        fig.update_layout(title_text = f"Scale Size Distribution, Observation, L Shell {Lrange[0]}:{Lrange[1]}",
+                          xaxis_title_text="Scale (km)")
+
+        fig.update_layout(showlegend=False)
+
+        fig.write_image(f"/home/wyatt/Projects/SAMPEX/bounce_figures/important/scale_hist_local_L{Lrange[0]}_{Lrange[1]}.png")
+        fig.show()
+
+    def scale_dial_local(self,Lrange = [0,7]):
+        grouped_L = self.df[(self.df["L"] > Lrange[0]) & (self.df["L"] < Lrange[1] ) ]
+
+        fig = go.Figure(data=
+        go.Scatterpolar(
+            r = grouped_L["L"].to_numpy(),
+            theta = (grouped_L["MLT"]*360/24.0).to_numpy(),
+            mode = 'markers',
+            marker=dict(
+                size=10,
+                color=grouped_L["dist"], #set color equal to a variable
+                colorscale='Viridis', # one of plotly colorscales
+                showscale=True
+            )
+        ))
+        fig.update_layout(
+            title_text=f"L vs MLT, L Shell {Lrange[0]}:{Lrange[1]}",
+            polar = dict(
+              angularaxis = dict(
+                  tickmode = "array",
+                  tickvals = [int(mlt*360/24.0) for mlt in range(0,24,4)],
+                  ticktext = ["0","4","8","12","16","20"]
+                )))
+        fig.update_traces(marker_colorbar=dict(title="Scale (km)"),
+                          marker=dict(size=10),
+                          text=grouped_L["dist"].to_numpy())
+        fig.write_image(f"/home/wyatt/Projects/SAMPEX/bounce_figures/important/scale_dial_local_L{Lrange[0]}_{Lrange[1]}.png")
 
         fig.show()
 
+    def scale_hist_eq(self,Lrange=[0,7]):
+        grouped_L = self.df[(self.df["L"] > Lrange[0]) & (self.df["L"] < Lrange[1] ) ]
+        prefactor = (2**.5 )* (grouped_L["L"].to_numpy() / (1 + grouped_L["alt"]/Re) )**3/2
+        grouped_L["eq_dist"] = prefactor * grouped_L["dist"]
 
-        
+        bins =10** np.linspace(np.log10(grouped_L["eq_dist"].min()),np.log10(grouped_L["eq_dist"].max()),50)
+        hist,edges = np.histogram(grouped_L["eq_dist"].to_numpy(),bins=list(bins))
+
+        bar_widths  = (bins[1:]-bins[:-1])
+        bar_centers = (bins[1:]+bins[:-1])/2
+        bar_height  = hist/bar_widths
+        fig = go.Figure(data=[go.Bar(
+            x=bar_centers,
+            y=bar_height,
+            width=bar_widths
+        )])
+        fig.update_xaxes(type="log")
+        fig.update_layout(title_text=f"Eq. Azim. Scale Size, (Logarithmic, scaled by bin width), L Shell {Lrange[0]}:{Lrange[1]}",
+                          xaxis_title_text="Scale Size (km)")
+        fig.update_layout(showlegend=False)
+
+        fig.write_image(f"/home/wyatt/Projects/SAMPEX/bounce_figures/important/log_eq_scales_L{Lrange[0]}_{Lrange[1]}.png")
+
+        fig.show()
+
+        fig=px.histogram(grouped_L["eq_dist"])
+        fig.update_layout(title_text = f"Scale Size Distribution, Equatorial, L Shell {Lrange[0]}:{Lrange[1]}",
+                          xaxis_title_text="Scale (km)")
+        fig.write_image(f"/home/wyatt/Projects/SAMPEX/bounce_figures/important/scale_hist_eq_L{Lrange[0]}_{Lrange[1]}.png")
+        fig.update_layout(showlegend=False)
+
+        fig.show()
+
+    def scale_dial_eq(self,Lrange=[0,7]):
+        grouped_L = self.df[(self.df["L"] > Lrange[0]) & (self.df["L"] < Lrange[1] ) ]
+        prefactor = (2**.5 )* (grouped_L["L"].to_numpy() / (1 + grouped_L["alt"]/Re) )**3/2
+        grouped_L["eq_dist"] = prefactor * grouped_L["dist"]
+        fig = go.Figure(data=
+        go.Scatterpolar(
+            r = grouped_L["L"].to_numpy(),
+            theta = (grouped_L["MLT"]*360/24.0).to_numpy(),
+            mode = 'markers',
+            marker=dict(
+                size=10,
+                color=grouped_L["eq_dist"], #set color equal to a variable
+                colorscale='Viridis', # one of plotly colorscales
+                showscale=True
+            )
+        ))
+        fig.update_layout(
+            title_text=f"L vs MLT, L Shell {Lrange[0]}:{Lrange[1]}",
+            polar = dict(
+              angularaxis = dict(
+                  tickmode = "array",
+                  tickvals = [int(mlt*360/24.0) for mlt in range(0,24,4)],
+                  ticktext = ["0","4","8","12","16","20"]
+                )))
+        fig.update_traces(marker_colorbar=dict(title="Scale (km)"),
+                          marker=dict(size=10),
+                          text=grouped_L["eq_dist"].to_numpy())
+
+        fig.write_image(f"/home/wyatt/Projects/SAMPEX/bounce_figures/important/scale_dial_eq_L{Lrange[0]}_{Lrange[1]}.png")
+
+        fig.show()
+
 
 class plots_examples:
     def __init__(self,year):
         self.year = year
         self.Re = 6371
-        self.counts_file = "/home/wyatt/Documents/SAMPEX/bounce/correlation/data/reviewed_"
+        self.counts_file = "/home/wyatt/Projects/SAMPEX/bounce/correlation/data/reviewed_"
 
         #not sure how to do this i hate myself fuck i suck at everything
 
@@ -1052,14 +1160,27 @@ class plots_examples:
 
 if __name__ == '__main__':
     # obj = plots(stats_file="stats_60keV_30deg")
-    # obj = plots()
+    obj = plots()
     # obj.kde_plot()
-    # obj.period_hist()
+    obj.period_hist(Lrange=[0,4])
+    obj.period_hist(Lrange=[4,7])
+    obj.period_hist(Lrange=[0,7])
+    obj.scale_dial_local(Lrange=[0,4])
+    obj.scale_dial_local(Lrange=[4,7])
+    obj.scale_dial_local(Lrange=[0,7])
+    obj.scale_dial_eq(Lrange=[0,4])
+    obj.scale_dial_eq(Lrange=[4,7])
+    obj.scale_dial_eq(Lrange=[0,7])
+    obj.scale_hist_eq(Lrange=[0,4])
+    obj.scale_hist_eq(Lrange=[4,7])
+    obj.scale_hist_eq(Lrange=[0,7])
+    obj.scale_hist_local(Lrange=[0,4])
+    obj.scale_hist_local(Lrange=[4,7])
+    obj.scale_hist_local(Lrange=[0,7])
 
-    obj = stats()
-    obj.plot()
 
-
+    # obj = stats()
+    # obj.plot()
     # gu = doubleCheck(None,2004)
     # gu.mainloop()
 

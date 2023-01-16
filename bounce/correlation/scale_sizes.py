@@ -57,7 +57,7 @@ fig.write_image("/home/wyatt/Documents/SAMPEX/bounce_figures/important/scale_dia
 fig.show()
 
 """
-map back to equator lobs * 1/sqrt2 * (L /robs)**3/2
+map back to equator lobs * sqrt2 * (L /robs*)**3/2
 """
 prefactor = (2**.5 )* (bounce_stats["L"].to_numpy() / (1 + bounce_stats["alt"]/Re) )**3/2
 bounce_stats["eq_dist"] = prefactor * bounce_stats["dist"]

@@ -20,7 +20,9 @@ note* missing data from 169-200
 state2=True
 if state2:
     # workDir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State2/'
-    workDir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State2/"
+    #workDir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State2/"
+    workDir = '/home/wyatt/Projects/SAMPEX/SAMPEX_Data/HILThires/State2/'
+
     url = 'http://www.srl.caltech.edu/sampex/DataCenter/DATA/HILThires/State2/hhrr1994'
     days = [str(i) for i in range(137,238)]
     for day in days:
@@ -37,7 +39,8 @@ State 4: Second 20-msec SSD configuration: 1996-220 thru 2004-182.
 state4=True
 if state4:
     # workDir = '/home/wyatt/Documents/SAMPEX/SAMPEX_Data/HILThires/State4/'
-    workDir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State4/"
+    #workDir = "/media/wyatt/64A5-F009/SAMPEX_Data/HILThires/State4/"
+    workDir = '/home/wyatt/Projects/SAMPEX/SAMPEX_Data/HILThires/State4/'
 
     url = 'http://www.srl.caltech.edu/sampex/DataCenter/DATA/HILThires/State4/hhrr'
     years = [str(i) for i in [1996,1997,1998,1999,2000,2001,2002,2003,2004]]
